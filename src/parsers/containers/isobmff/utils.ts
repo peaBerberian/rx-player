@@ -173,7 +173,7 @@ const FAKE_SINF_BOX = new Uint8Array([
  * shaka-player's code (google's own DASH player) while investigating this issue.
  * So kudos and thanks to them I guess!
  *
- * @param {BufferSource} segment
+ * @param {Uint8Array} segment
  * @returns {Uint8Array}
  */
 export function fakeEncryptionDataInInitSegment(

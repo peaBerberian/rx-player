@@ -23,6 +23,7 @@ import {
   removeDolbyVisionConfigData,
 } from "../../parsers/containers/isobmff/index.ts";
 import {
+  fakeEncryptionDataInInitSegment,
   getKeyIdFromInitSegment,
   parseEmsgBoxes,
 } from "../../parsers/containers/isobmff/utils.ts";
@@ -90,7 +91,7 @@ export default function generateAudioVideoSegmentParser({
       };
     }
 
-    const chunkData = toUint8Array(data);
+    let chunkData = toUint8Array(data);
 
     const containerType = inferSegmentContainer(context.type, context.mimeType);
 
@@ -211,6 +212,10 @@ export default function generateAudioVideoSegmentParser({
     }
 
     const parsedTimescale = isNullOrUndefined(timescale) ? undefined : timescale;
+
+    if (segment.isInit) {
+      chunkData = fakeEncryptionDataInInitSegment(chunkData);
+    }
 
     return {
       segmentType: "init",
