@@ -24,7 +24,7 @@ describe("Manifest - Period", () => {
     }));
 
     const Period = (await vi.importActual("../period")).default as typeof IPeriod;
-    const args = { id: "12", adaptations: {}, start: 0 };
+    const args = { id: "12", adaptations: {}, start: 0, thumbnailTracks: [] };
     let period: IPeriod | null = null;
     let errorReceived: unknown = null;
     try {
@@ -83,6 +83,7 @@ describe("Manifest - Period", () => {
       id: "12",
       adaptations: { foo },
       start: 0,
+      thumbnailTracks: [],
     } as unknown as IParsedPeriod;
     let period: IPeriod | null = null;
     let errorReceived: unknown = null;
@@ -131,7 +132,12 @@ describe("Manifest - Period", () => {
     }));
 
     const Period = (await vi.importActual("../period")).default as typeof IPeriod;
-    const args = { id: "12", adaptations: { video: [], audio: [] }, start: 0 };
+    const args = {
+      id: "12",
+      adaptations: { video: [], audio: [] },
+      start: 0,
+      thumbnailTracks: [],
+    };
     let period: IPeriod | null = null;
     let errorReceived: unknown = null;
     try {
@@ -224,6 +230,7 @@ describe("Manifest - Period", () => {
       id: "12",
       adaptations: { video, audio },
       start: 0,
+      thumbnailTracks: [],
     } as unknown as IParsedPeriod;
     let period: IPeriod | null = null;
     let errorReceived: unknown = null;
@@ -290,6 +297,7 @@ describe("Manifest - Period", () => {
       id: "12",
       adaptations: { video: [videoAdaptation], audio: [audioAdaptation] },
       start: 0,
+      thumbnailTracks: [],
     } as unknown as IParsedPeriod;
     let period: IPeriod | null = null;
     let errorReceived: unknown = null;
@@ -369,7 +377,12 @@ describe("Manifest - Period", () => {
       },
     };
     const audio = [audioAda1, audioAda2] as unknown as IParsedAdaptation[];
-    const args = { id: "12", adaptations: { video, audio }, start: 0 };
+    const args = {
+      id: "12",
+      adaptations: { video, audio },
+      start: 0,
+      thumbnailTracks: [],
+    };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache);
 
@@ -426,7 +439,7 @@ describe("Manifest - Period", () => {
       },
     };
     const video = [videoAda1, videoAda2] as unknown as IParsedAdaptation[];
-    const args = { id: "12", adaptations: { video }, start: 0 };
+    const args = { id: "12", adaptations: { video }, start: 0, thumbnailTracks: [] };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache, representationFilter);
 
@@ -483,7 +496,12 @@ describe("Manifest - Period", () => {
     };
     const video = [videoAda1, videoAda2] as unknown as IParsedAdaptation[];
     const audio = [fooAda1];
-    const args = { id: "12", adaptations: { video, audio }, start: 0 };
+    const args = {
+      id: "12",
+      adaptations: { video, audio },
+      start: 0,
+      thumbnailTracks: [],
+    };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache);
     // TO DO: is the test relevant?
@@ -525,7 +543,7 @@ describe("Manifest - Period", () => {
       },
     };
     const video = [videoAda1, videoAda2] as unknown as IParsedAdaptation[];
-    const args = { id: "12", adaptations: { video }, start: 72 };
+    const args = { id: "12", adaptations: { video }, start: 72, thumbnailTracks: [] };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache);
     expect(period.start).toEqual(72);
@@ -568,7 +586,13 @@ describe("Manifest - Period", () => {
       },
     };
     const video = [videoAda1, videoAda2] as unknown as IParsedAdaptation[];
-    const args = { id: "12", adaptations: { video }, start: 0, duration: 12 };
+    const args = {
+      id: "12",
+      adaptations: { video },
+      start: 0,
+      duration: 12,
+      thumbnailTracks: [],
+    };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache);
     expect(period.start).toEqual(0);
@@ -611,7 +635,13 @@ describe("Manifest - Period", () => {
       },
     };
     const video = [videoAda1, videoAda2] as unknown as IParsedAdaptation[];
-    const args = { id: "12", adaptations: { video }, start: 50, duration: 12 };
+    const args = {
+      id: "12",
+      adaptations: { video },
+      start: 50,
+      duration: 12,
+      thumbnailTracks: [],
+    };
     const codecSupportCache = new CodecSupportCache([]);
     const period = new Period(args, codecSupportCache);
     expect(period.start).toEqual(50);
@@ -669,6 +699,7 @@ describe("Manifest - Period", () => {
       id: "12",
       adaptations: { video, audio },
       start: 50,
+      thumbnailTracks: [],
       duration: 12,
     };
     const codecSupportCache = new CodecSupportCache([]);
@@ -727,6 +758,7 @@ describe("Manifest - Period", () => {
 
     const args = {
       id: "12",
+      thumbnailTracks: [],
       adaptations: { video, audio },
       start: 50,
       duration: 12,
@@ -804,6 +836,7 @@ describe("Manifest - Period", () => {
 
     const args = {
       id: "12",
+      thumbnailTracks: [],
       adaptations: { video, audio },
       start: 50,
       duration: 12,
