@@ -6,6 +6,7 @@ import type {
   IRebufferingStatus,
   ObservationPosition,
 } from "../../../playback_observer";
+import isNullOrUndefined from "../../../utils/is_null_or_undefined";
 import getMonotonicTimeStamp from "../../../utils/monotonic_timestamp";
 import type SegmentSinksStore from "../../segment_sinks";
 import type { IBufferedChunk } from "../../segment_sinks";
@@ -178,54 +179,59 @@ export default class FreezeResolver {
         if (segmentList.length === 0) {
           break;
         }
-        const lastSegment = segmentList[segmentList.length - 1];
+        let initialOccurenceOfLastSegment = segmentList[segmentList.length - 1];
         let recentQualityChangeSegment: IPlayedHistoryEntry | undefined;
         for (let i = segmentList.length - 2; i >= 0; i--) {
           const segment = segmentList[i];
           log.warn(
             "FR: !!!!!!",
             ttype,
-            lastSegment.segment?.infos.representation.bitrate,
+            initialOccurenceOfLastSegment.segment?.infos.representation.bitrate,
             segment.segment?.infos.representation.bitrate,
-            segment.timestamp - lastSegment.timestamp,
+            segment.timestamp - initialOccurenceOfLastSegment.timestamp,
           );
           if (segment.segment === null) {
             recentQualityChangeSegment = segment;
             break;
           } else if (
             segment.segment.infos.representation.uniqueId !==
-              lastSegment.segment?.infos.representation.uniqueId &&
-            lastSegment.timestamp - segment.timestamp < 5000
+              initialOccurenceOfLastSegment.segment?.infos.representation.uniqueId &&
+            initialOccurenceOfLastSegment.timestamp - segment.timestamp < 5000
           ) {
             recentQualityChangeSegment = segment;
             break;
+          } else if (
+            initialOccurenceOfLastSegment.segment !== null &&
+            segment.segment.start === initialOccurenceOfLastSegment.segment.start
+          ) {
+            initialOccurenceOfLastSegment = segment;
           }
         }
         if (
           recentQualityChangeSegment !== undefined &&
           recentQualityChangeSegment.segment !== null
         ) {
-          if (lastSegment.segment === null) {
+          if (initialOccurenceOfLastSegment.segment === null) {
             log.debug("FR: Freeze when beginning to play a content, reloading");
             return { type: "reload", value: null };
           } else if (
-            lastSegment.segment.infos.period.id !==
+            initialOccurenceOfLastSegment.segment.infos.period.id !==
             recentQualityChangeSegment.segment.infos.period.id
           ) {
             log.debug("FR: Freeze when switching Period, reloading");
             return { type: "reload", value: null };
           } else if (
-            lastSegment.segment.infos.representation.uniqueId !==
+            initialOccurenceOfLastSegment.segment.infos.representation.uniqueId !==
             recentQualityChangeSegment.segment.infos.representation.uniqueId
           ) {
             log.warn(
               "FR: Freeze when switching Representation, deprecating",
-              lastSegment.segment.infos.representation.bitrate,
+              initialOccurenceOfLastSegment.segment.infos.representation.bitrate,
             );
             toDeprecate.push({
-              adaptation: lastSegment.segment.infos.adaptation,
-              period: lastSegment.segment.infos.period,
-              representation: lastSegment.segment.infos.representation,
+              adaptation: initialOccurenceOfLastSegment.segment.infos.adaptation,
+              period: initialOccurenceOfLastSegment.segment.infos.period,
+              representation: initialOccurenceOfLastSegment.segment.infos.representation,
             });
           }
         }
