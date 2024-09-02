@@ -6,7 +6,6 @@ import type {
   IRebufferingStatus,
   ObservationPosition,
 } from "../../../playback_observer";
-import isNullOrUndefined from "../../../utils/is_null_or_undefined";
 import getMonotonicTimeStamp from "../../../utils/monotonic_timestamp";
 import type SegmentSinksStore from "../../segment_sinks";
 import type { IBufferedChunk } from "../../segment_sinks";
