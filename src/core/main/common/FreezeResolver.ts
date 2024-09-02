@@ -148,7 +148,8 @@ export default class FreezeResolver {
       FREEZING_FLUSH_FAILURE_DELAY,
     } = config.getCurrent();
 
-    const isFrozen = freezing !== null ||
+    const isFrozen =
+      freezing !== null ||
       // When rebuffering, `freezing` might be not set as we're actively pausing
       // playback. Yet, rebuffering occurences can also be abnormal, such as
       // when enough buffer is constructed but with a low readyState (those are
@@ -178,26 +179,44 @@ export default class FreezeResolver {
           break;
         }
         const lastSegment = segmentList[segmentList.length - 1];
-        let prevSegment: IPlayedHistoryEntry | undefined;
+        let recentQualityChangeSegment: IPlayedHistoryEntry | undefined;
         for (let i = segmentList.length - 2; i >= 0; i--) {
           const segment = segmentList[i];
-          if (segment.segment !== lastSegment.segment) {
-            prevSegment = segment;
+          log.warn(
+            "FR: !!!!!!",
+            ttype,
+            lastSegment.segment?.infos.representation.bitrate,
+            segment.segment?.infos.representation.bitrate,
+            segment.timestamp - lastSegment.timestamp,
+          );
+          if (segment.segment === null) {
+            recentQualityChangeSegment = segment;
+            break;
+          } else if (
+            segment.segment.infos.representation.uniqueId !==
+              lastSegment.segment?.infos.representation.uniqueId &&
+            lastSegment.timestamp - segment.timestamp < 5000
+          ) {
+            recentQualityChangeSegment = segment;
             break;
           }
         }
-        if (prevSegment !== undefined && prevSegment.segment !== null) {
+        if (
+          recentQualityChangeSegment !== undefined &&
+          recentQualityChangeSegment.segment !== null
+        ) {
           if (lastSegment.segment === null) {
             log.debug("FR: Freeze when beginning to play a content, reloading");
             return { type: "reload", value: null };
           } else if (
-            lastSegment.segment.infos.period.id !== prevSegment.segment.infos.period.id
+            lastSegment.segment.infos.period.id !==
+            recentQualityChangeSegment.segment.infos.period.id
           ) {
             log.debug("FR: Freeze when switching Period, reloading");
             return { type: "reload", value: null };
           } else if (
             lastSegment.segment.infos.representation.uniqueId !==
-            prevSegment.segment.infos.representation.uniqueId
+            recentQualityChangeSegment.segment.infos.representation.uniqueId
           ) {
             log.warn(
               "FR: Freeze when switching Representation, deprecating",
