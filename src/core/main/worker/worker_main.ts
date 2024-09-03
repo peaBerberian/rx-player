@@ -923,6 +923,10 @@ function loadOrReloadPreparedContent(
         );
       },
       (err: unknown) => {
+        if (TaskCanceller.isCancellationError(err)) {
+          log.info("WP: A reloading operation was cancelled");
+          return;
+        }
         sendMessage({
           type: WorkerMessageType.Error,
           contentId,
