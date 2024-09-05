@@ -143,9 +143,17 @@ export default class FreezeResolver {
     observation: IFreezeResolverObservation,
   ): IFreezeResolution | null {
     const now = getMonotonicTimeStamp();
+    log.warn("FR: IN NEW OBSERVATION 1", now);
     this._addPositionToHistory(observation, now);
+    log.warn("FR: IN NEW OBSERVATION 2", now);
 
     if (this._ignoreFreezeUntil !== null && now < this._ignoreFreezeUntil) {
+      log.warn(
+        "FR: IGNORING",
+        now - this._ignoreFreezeUntil,
+        now,
+        this._ignoreFreezeUntil,
+      );
       return null;
     }
     this._ignoreFreezeUntil = null;
@@ -172,7 +180,17 @@ export default class FreezeResolver {
       // generally decryption issues).
       (rebuffering !== null && readyState === 1 && (bufferGap >= 6 || fullyLoaded));
 
+    log.warn(
+      "FR: IN NEW OBSERVATION 4",
+      isFrozen,
+      rebuffering !== null,
+      readyState === 1,
+      bufferGap >= 6,
+      fullyLoaded,
+    );
+
     if (!isFrozen) {
+      log.warn("FR PAS FROZEN 2");
       this._decipherabilityFreezeStartingTimestamp = null;
       return null;
     }
