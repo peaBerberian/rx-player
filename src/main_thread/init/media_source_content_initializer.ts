@@ -568,7 +568,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       segmentQueueCreator,
       speed,
     } = args;
-    const { transport } = this._settings;
+    const { transport } = this._initSettings;
 
     const initialPeriod =
       manifest.getPeriodForTime(initialTime) ?? manifest.getNextPeriod(initialTime);
