@@ -465,7 +465,7 @@ const DEFAULT_CONFIG = {
    * @type {Number}
    */
   RESUME_GAP_AFTER_SEEKING: {
-    DEFAULT: 1.5,
+    DEFAULT: 10,
     LOW_LATENCY: 0.5,
   },
 
@@ -475,7 +475,7 @@ const DEFAULT_CONFIG = {
    * @type {Number}
    */
   RESUME_GAP_AFTER_NOT_ENOUGH_DATA: {
-    DEFAULT: 1.5,
+    DEFAULT: 10,
     LOW_LATENCY: 0.5,
   },
 
@@ -485,7 +485,7 @@ const DEFAULT_CONFIG = {
    * @type {Number}
    */
   RESUME_GAP_AFTER_BUFFERING: {
-    DEFAULT: 5,
+    DEFAULT: 10,
     LOW_LATENCY: 0.5,
   },
 
