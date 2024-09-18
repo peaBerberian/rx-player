@@ -546,10 +546,10 @@ export default function AdaptationStream(
 }
 
 class BrowserGarbageCollectionObserver {
-  private _segmentSink: SegmentSink;
+  // private _segmentSink: SegmentSink;
   private _playbackObserver: IReadOnlyPlaybackObserver<IAdaptationStreamPlaybackObservation>;
   private _wantedBufferAhead: IReadOnlySharedReference<number>;
-  private _maxVideoBufferSize: IReadOnlySharedReference<number>;
+  // private _maxVideoBufferSize: IReadOnlySharedReference<number>;
 
   constructor(args: {
     segmentSink: SegmentSink;
@@ -558,10 +558,10 @@ class BrowserGarbageCollectionObserver {
     wantedBufferAhead: IReadOnlySharedReference<number>;
     maxVideoBufferSize: IReadOnlySharedReference<number>;
   }) {
-    this._segmentSink = args.segmentSink;
+    // this._segmentSink = args.segmentSink;
     this._playbackObserver = args.playbackObserver;
     this._wantedBufferAhead = args.wantedBufferAhead;
-    this._maxVideoBufferSize = args.maxVideoBufferSize;
+    // this._maxVideoBufferSize = args.maxVideoBufferSize;
   }
 
   public onAddedSegment(
