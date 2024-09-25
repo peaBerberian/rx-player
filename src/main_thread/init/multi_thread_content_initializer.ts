@@ -78,6 +78,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
   /** Constructor settings associated to this `MultiThreadContentInitializer`. */
   private _settings: IInitializeArguments;
 
+  private _bufferedMessages: MessageEvent[] | null;
+
   /**
    * Information relative to the current loaded content.
    *
@@ -123,6 +125,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
       lastMessageId: 0,
       resolvers: {},
     };
+    this._bufferedMessages = null;
   }
 
   /**
@@ -176,6 +179,24 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     if (this._initCanceller.isUsed()) {
       return;
     }
+    this._bufferedMessages = [];
+    log.debug("MTCI: addEventListener prepare buffering worker messages");
+    const onmessage = (evt: MessageEvent): void => {
+      if (this._bufferedMessages === null) {
+        return;
+      }
+      this._bufferedMessages.push(evt);
+    };
+    this._settings.worker.addEventListener("message", onmessage);
+    const onmessageerror = (_msg: MessageEvent) => {
+      log.error("MTCI: Error when receiving message from worker.");
+    };
+    this._settings.worker.addEventListener("messageerror", onmessageerror);
+    this._initCanceller.signal.register(() => {
+      log.debug("MTCI: removeEventListener prepare for worker message");
+      this._settings.worker.removeEventListener("message", onmessage);
+      this._settings.worker.removeEventListener("messageerror", onmessageerror);
+    });
 
     // Also bind all `SharedReference` objects:
 
@@ -1103,17 +1124,19 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
       }
     };
 
-    const onmessageerror = (_msg: MessageEvent) => {
-      log.error("MTCI: Error when receiving message from worker.");
-    };
-
     log.debug("MTCI: addEventListener for worker message");
+    if (this._bufferedMessages !== null) {
+      const bufferedMessages = this._bufferedMessages.slice();
+      log.debug("MTCI: Processing buffered messages", bufferedMessages.length);
+      for (const message of bufferedMessages) {
+        onmessage(message);
+      }
+      this._bufferedMessages = null;
+    }
     this._settings.worker.addEventListener("message", onmessage);
-    this._settings.worker.addEventListener("messageerror", onmessageerror);
     this._initCanceller.signal.register(() => {
       log.debug("MTCI: removeEventListener for worker message");
       this._settings.worker.removeEventListener("message", onmessage);
-      this._settings.worker.removeEventListener("messageerror", onmessageerror);
     });
   }
 
