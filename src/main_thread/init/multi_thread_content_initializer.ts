@@ -185,6 +185,9 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
       if (this._bufferedMessages === null) {
         return;
       }
+      const msgData = evt.data as unknown as IWorkerMessage;
+      const type = msgData.type;
+      log.debug("MCTI: !!!!!", type);
       this._bufferedMessages.push(evt);
     };
     this._settings.worker.addEventListener("message", onmessage);
