@@ -4,6 +4,7 @@ import getMonotonicTimeStamp from "../../../utils/monotonic_timestamp";
 import type { IRange } from "../../../utils/ranges";
 import type SharedReference from "../../../utils/reference";
 import type SegmentSinksStore from "../../segment_sinks";
+import { maxVideoBufferSize } from "../worker/globals";
 
 export default class BufferSizeEstimator {
   private _segmentSinkStore: SegmentSinksStore;
@@ -61,6 +62,9 @@ export default class BufferSizeEstimator {
     log.debug("BSE: Current buffer size estimate:", bufferSize);
     if (bufferSize === undefined) {
       return;
+    }
+    if (maxVideoBufferSize.getValue() > 0 && maxVideoBufferSize.getValue() % 1000 === 0) {
+      log.debug("BSE: Round maxVideoBufferSize, ignoring", maxVideoBufferSize.getValue());
     }
 
     if (
