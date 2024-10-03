@@ -834,7 +834,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
                 this._priv_pictureInPictureRef,
                 currentContentCanceller.signal,
               ),
-              (isActive) => (isActive ? Infinity : 0),
+              (isActive: boolean) => (isActive ? Infinity : 0),
               currentContentCanceller.signal,
             ),
           };
