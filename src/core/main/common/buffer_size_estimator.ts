@@ -112,6 +112,21 @@ export default class BufferSizeEstimator {
 
     if (gced.length > 0) {
       log.warn("BSE: GC detected", bufferSize, JSON.stringify(gced));
+      let madiv: HTMLDivElement | null = document.querySelector("#madiv");
+      if (madiv === null) {
+        madiv = document.createElement("div");
+        madiv.id = "madiv";
+        madiv.style.position = "absolute";
+        madiv.style.top = "0px";
+        madiv.style.left = "0px";
+        madiv.style.width = "100%";
+        madiv.style.color = "black";
+        madiv.style.backgroundColor = "white";
+        document.body.appendChild(madiv);
+      }
+      const element = document.createElement("div");
+      element.innerText = "BSE: GC detected " + String(bufferSize) + JSON.stringify(gced);
+      madiv.appendChild(element);
       const newLock = now + 10000;
       if (
         this._lockUntil === null ||
