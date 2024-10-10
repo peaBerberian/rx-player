@@ -1,0 +1,215 @@
+import log from "../../../log";
+import type { ITrackType } from "../../../public_types";
+import getMonotonicTimeStamp from "../../../utils/monotonic_timestamp";
+import type { IRange } from "../../../utils/ranges";
+import type SharedReference from "../../../utils/reference";
+import type SegmentSinksStore from "../../segment_sinks";
+import { maxVideoBufferSize } from "../worker/globals";
+
+export default class BufferSizeEstimator {
+  private _segmentSinkStore: SegmentSinksStore;
+  private _wantedBufferAhead: SharedReference<number>;
+  private _maxVideoBufferSize: SharedReference<number>;
+  private _lockUntil: number | null;
+  private _removing: boolean;
+  private _lastMaxVideoBufferSizeLimits: number[];
+
+  constructor(
+    segmentSinksStore: SegmentSinksStore,
+    localWantedBufferAhead: SharedReference<number>,
+    localMaxVideoBufferSize: SharedReference<number>,
+  ) {
+    this._segmentSinkStore = segmentSinksStore;
+    this._wantedBufferAhead = localWantedBufferAhead;
+    this._maxVideoBufferSize = localMaxVideoBufferSize;
+    this._lockUntil = null;
+    this._removing = false;
+    this._lastMaxVideoBufferSizeLimits = [];
+  }
+
+  async onMediaObservation(
+    trackType: ITrackType,
+    position: number,
+    buffered: IRange[],
+    gced: IRange[],
+  ) {
+    if (trackType === "text") {
+      return;
+    }
+    const sinkStatus = this._segmentSinkStore.getStatus(trackType);
+    if (sinkStatus.type !== "initialized") {
+      log.warn("BSE: Ticking for an unknown sink");
+      return;
+    }
+
+    const now = getMonotonicTimeStamp();
+    const segmentSink = sinkStatus.value;
+    const baseWantedBufferAhead = this._wantedBufferAhead.getValue();
+
+    const inventory = segmentSink.getLastKnownInventory();
+    let bufferSize: number | undefined;
+    if (trackType === "video") {
+      bufferSize = 0;
+      for (const item of inventory) {
+        if (item.chunkSize === undefined || bufferSize === undefined) {
+          log.warn("BSE: A chunk has an undefined size. Aborting.");
+          bufferSize = undefined;
+          break;
+        }
+        bufferSize += item.chunkSize;
+      }
+    }
+    log.debug("BSE: Current buffer size estimate:", bufferSize);
+    if (bufferSize === undefined) {
+      return;
+    }
+    if (maxVideoBufferSize.getValue() > 0 && maxVideoBufferSize.getValue() % 1000 === 0) {
+      log.debug("BSE: Round maxVideoBufferSize, ignoring", maxVideoBufferSize.getValue());
+    }
+
+    if (
+      !this._removing &&
+      gced.length === 0 &&
+      buffered.length > 0 &&
+      buffered[buffered.length - 1].end - position > baseWantedBufferAhead - 1 &&
+      position > 10 &&
+      position - buffered[0].start > baseWantedBufferAhead
+    ) {
+      if (this._lockUntil !== null) {
+        if (this._lockUntil <= now) {
+          log.warn("BSE: Lock time ended");
+          if (trackType === "video") {
+            this._maxVideoBufferSize.setValue(Infinity);
+          }
+          this._lockUntil = null;
+        }
+        return;
+      }
+
+      const sinks = [segmentSink];
+      const otherTrackType = trackType === "video" ? "audio" : "video";
+      const otherSinkStatus = this._segmentSinkStore.getStatus(otherTrackType);
+      if (otherSinkStatus.type === "initialized") {
+        sinks.push(otherSinkStatus.value);
+      }
+      log.warn("BSE: Removing buffer behind", position - 10);
+      this._removing = true;
+      await Promise.all([
+        ...sinks.map((s) => s.removeBuffer(0, position - 10)),
+        ...sinks.map((s) =>
+          s.removeBuffer(position + baseWantedBufferAhead + 20, Number.MAX_VALUE),
+        ),
+      ]);
+      this._removing = false;
+      const newWantedBufferAhead = baseWantedBufferAhead + 6;
+      log.warn(
+        "BSE: We have a big buffer behind raising `wantedBufferAhead`.",
+        baseWantedBufferAhead,
+        newWantedBufferAhead,
+      );
+      this._wantedBufferAhead.setValue(newWantedBufferAhead);
+    }
+
+    if (gced.length > 0) {
+      log.warn("BSE: GC detected", bufferSize, JSON.stringify(gced));
+      let madiv: HTMLDivElement | null = document.querySelector("#madiv");
+      if (madiv === null) {
+        madiv = document.createElement("div");
+        madiv.id = "madiv";
+        madiv.style.position = "absolute";
+        madiv.style.top = "0px";
+        madiv.style.left = "0px";
+        madiv.style.width = "100%";
+        madiv.style.color = "black";
+        madiv.style.backgroundColor = "white";
+        document.body.appendChild(madiv);
+      }
+      const element = document.createElement("div");
+      element.innerText = "BSE: GC detected " + String(bufferSize) + JSON.stringify(gced);
+      madiv.appendChild(element);
+      const newLock = now + 10000;
+      if (
+        this._lockUntil === null ||
+        this._lockUntil === Infinity ||
+        this._lockUntil < newLock
+      ) {
+        this._lockUntil = newLock;
+      }
+
+      if (position - 10 > 0 && buffered.length > 0 && position - buffered[0].start > 10) {
+        const sinks = [segmentSink];
+        const otherTrackType = trackType === "video" ? "audio" : "video";
+        const otherSinkStatus = this._segmentSinkStore.getStatus(otherTrackType);
+        if (otherSinkStatus.type === "initialized") {
+          sinks.push(otherSinkStatus.value);
+        }
+        log.warn("BSE: Removing buffer behind", position - 10);
+        this._removing = true;
+        await Promise.all([
+          ...sinks.map((s) => s.removeBuffer(0, position - 10)),
+          ...sinks.map((s) =>
+            s.removeBuffer(position + baseWantedBufferAhead + 20, Number.MAX_VALUE),
+          ),
+        ]);
+        this._removing = false;
+      }
+
+      if (
+        bufferSize !== undefined &&
+        trackType === "video" &&
+        this._maxVideoBufferSize.getValue() > bufferSize
+      ) {
+        if (this._lastMaxVideoBufferSizeLimits.length > 0) {
+          const prevBufferSize =
+            this._lastMaxVideoBufferSizeLimits[
+              this._lastMaxVideoBufferSizeLimits.length - 1
+            ];
+          const ratio = bufferSize / prevBufferSize;
+
+          if (ratio < 1.2 && ratio > 0.83) {
+            log.debug(
+              "BSE: Sensibly same `maxVideoBufferSize` limit",
+              bufferSize,
+              prevBufferSize,
+              ratio,
+            );
+            this._lastMaxVideoBufferSizeLimits.push(bufferSize);
+          } else {
+            log.debug(
+              "BSE: Different `maxVideoBufferSize` limit",
+              bufferSize,
+              prevBufferSize,
+              ratio,
+            );
+            this._lastMaxVideoBufferSizeLimits = [bufferSize];
+          }
+        } else {
+          this._lastMaxVideoBufferSizeLimits = [bufferSize];
+        }
+
+        if (this._lastMaxVideoBufferSizeLimits.length >= 3) {
+          bufferSize = Math.min(...this._lastMaxVideoBufferSizeLimits) * 0.75;
+          log.warn("BSE: Locking minimum maxVideoBufferSize long term", bufferSize);
+          this._lockUntil = Infinity;
+          const toRemove = this._lastMaxVideoBufferSizeLimits.length - 10;
+          if (toRemove > 0) {
+            this._lastMaxVideoBufferSizeLimits.splice(0, toRemove);
+          }
+        } else {
+          log.warn("BSE: Locking maxVideoBufferSize: ", bufferSize);
+        }
+        this._maxVideoBufferSize.setValue(bufferSize);
+      }
+
+      const newWantedBufferAhead = Math.max(5, baseWantedBufferAhead - 8);
+      if (newWantedBufferAhead < baseWantedBufferAhead) {
+        log.warn(
+          "BSE: Lowering wantedBufferAhead: ",
+          baseWantedBufferAhead,
+          newWantedBufferAhead,
+        );
+        this._wantedBufferAhead.setValue(newWantedBufferAhead);
+      }
+    }
+  }
+}

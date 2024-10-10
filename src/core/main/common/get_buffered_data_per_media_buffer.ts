@@ -17,14 +17,29 @@ import type { IRange } from "../../../utils/ranges";
 export default function getBufferedDataPerMediaBuffer(
   mediaSourceInterface: IMediaSourceInterface | null,
   textDisplayer: ITextDisplayer | null,
-): Record<ITrackType, IRange[] | null> {
-  const buffered: Record<ITrackType, IRange[] | null> = {
+): Record<
+  ITrackType,
+  {
+    buffered: IRange[];
+    gcedSincePrevious: IRange[];
+  } | null
+> {
+  const buffered: Record<
+    ITrackType,
+    {
+      buffered: IRange[];
+      gcedSincePrevious: IRange[];
+    } | null
+  > = {
     audio: null,
     video: null,
     text: null,
   };
   if (textDisplayer !== null) {
-    buffered.text = textDisplayer.getBufferedRanges();
+    buffered.text = {
+      buffered: textDisplayer.getBufferedRanges(),
+      gcedSincePrevious: [],
+    };
   }
   if (mediaSourceInterface === null) {
     return buffered;
@@ -37,13 +52,19 @@ export default function getBufferedDataPerMediaBuffer(
     mediaSourceInterface.sourceBuffers,
     (s) => s.type === SourceBufferType.Video,
   );
-  const audioBuffered = audioBuffer?.getBuffered();
+  const audioBuffered = audioBuffer?.getBufferedInfo();
   if (audioBuffered !== undefined) {
-    buffered.audio = audioBuffered;
+    buffered.audio = {
+      buffered: audioBuffered.buffered,
+      gcedSincePrevious: audioBuffered.gcedSincePrevious,
+    };
   }
-  const videoBuffered = videoBuffer?.getBuffered();
+  const videoBuffered = videoBuffer?.getBufferedInfo();
   if (videoBuffered !== undefined) {
-    buffered.video = videoBuffered;
+    buffered.video = {
+      buffered: videoBuffered.buffered,
+      gcedSincePrevious: videoBuffered.gcedSincePrevious,
+    };
   }
   return buffered;
 }

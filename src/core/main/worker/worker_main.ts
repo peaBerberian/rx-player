@@ -32,6 +32,7 @@ import type {
   IStreamStatusPayload,
 } from "../../stream";
 import StreamOrchestrator from "../../stream";
+import BufferSizeEstimator from "../common/buffer_size_estimator";
 import createContentTimeBoundariesObserver from "../common/create_content_time_boundaries_observer";
 import getBufferedDataPerMediaBuffer from "../common/get_buffered_data_per_media_buffer";
 import ContentPreparer from "./content_preparer";
@@ -522,6 +523,11 @@ function loadOrReloadPreparedContent(
     segmentQueueCreator,
   } = preparedContent;
   const { drmSystemId, enableFastSwitching, initialTime, onCodecSwitch } = val;
+  const bufferSizeEstimator = new BufferSizeEstimator(
+    segmentSinksStore,
+    wantedBufferAhead,
+    maxVideoBufferSize,
+  );
   playbackObservationRef.onUpdate((observation) => {
     if (preparedContent.decipherabilityFreezeDetector.needToReload(observation)) {
       handleMediaSourceReload({
@@ -535,9 +541,23 @@ function loadOrReloadPreparedContent(
     ["video" as const, "audio" as const, "text" as const].forEach((tType) => {
       const segmentSinkStatus = segmentSinksStore.getStatus(tType);
       if (segmentSinkStatus.type === "initialized") {
-        segmentSinkStatus.value.synchronizeInventory(observation.buffered[tType] ?? []);
+        segmentSinkStatus.value.synchronizeInventory(
+          observation.buffered[tType]?.buffered ?? [],
+        );
       }
     });
+    if (observation.buffered.video !== null) {
+      bufferSizeEstimator
+        .onMediaObservation(
+          "video",
+          observation.position.getPolled(),
+          observation.buffered.video.buffered,
+          observation.buffered.video.gcedSincePrevious,
+        )
+        .catch((_e) => {
+          log.error("XXX TODO");
+        });
+    }
   });
 
   const initialPeriod =

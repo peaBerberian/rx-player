@@ -890,6 +890,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       };
 
       const canRunInMultiThread =
+        // XXX TODO to remove
+        Math.random() === Infinity &&
         features.multithread !== null &&
         this._priv_worker !== null &&
         transport === "dash" &&
