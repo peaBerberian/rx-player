@@ -200,6 +200,7 @@ export default class FreezeResolver {
         const segmentList = this._lastSegmentInfo[ttype];
         if (segmentList.length === 0) {
           // There's no buffered segment for that type, go to next type
+          log.warn("FR: !!!!! exit 1", ttype);
           continue;
         }
 
@@ -207,6 +208,7 @@ export default class FreezeResolver {
         let currentSegmentEntry = segmentList[segmentList.length - 1];
         if (currentSegmentEntry.segment === null) {
           // No segment currently played for that given type, go to next type
+          log.warn("FR: !!!!! exit 2", ttype);
           continue;
         }
 
@@ -224,6 +226,7 @@ export default class FreezeResolver {
           const segment = segmentList[i];
           if (segment.segment === null) {
             // Before the current segment, there was no segment being played
+            log.warn("FR: !!!!! loop 1", ttype);
             previousRepresentationEntry = segment;
             break;
           } else if (
@@ -231,6 +234,7 @@ export default class FreezeResolver {
               currentSegment.infos.representation.uniqueId &&
             currentSegmentEntry.timestamp - segment.timestamp < 5000
           ) {
+            log.warn("FR: !!!!! loop 2", ttype);
             // Before the current segment, there was a segment of a different
             // Representation being played
             previousRepresentationEntry = segment;
@@ -248,7 +252,10 @@ export default class FreezeResolver {
             // (We may be playing, or be freezing, on the current segment for some
             // time, this allows to consider a more precize timestamp at which we
             // switched segments).
+            log.warn("FR: !!!!! loop 3", ttype);
             currentSegmentEntry = segment;
+          } else {
+            log.warn("FR: !!!!! loop 4", ttype);
           }
         }
 
@@ -285,6 +292,8 @@ export default class FreezeResolver {
             period: currentSegment.infos.period,
             representation: currentSegment.infos.representation,
           });
+        } else {
+          log.warn("FR: !!!!! else 4", ttype);
         }
       }
 
