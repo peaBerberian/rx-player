@@ -722,7 +722,9 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
           }
           case "flush": {
             log.info("Init: Flushing buffer due to freeze");
-            const currentTime = playbackObserver.getCurrentTime();
+            const currentTime = observation.position.isAwaitingFuturePosition()
+              ? observation.position.getWanted()
+              : playbackObserver.getCurrentTime();
             const relativeResumingPosition = freezeResolution.value.relativeSeek;
             const wantedSeekingTime = currentTime + relativeResumingPosition;
             playbackObserver.setCurrentTime(wantedSeekingTime);
@@ -730,7 +732,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
           }
           case "deprecate-representations": {
             const contents = freezeResolution.value;
-            if (this._settings.enableRepresentationDeprecation) {
+            if (this._initSettings.enableRepresentationDeprecation) {
               manifest.deprecateRepresentations(contents);
             }
             triggerReload();
@@ -823,7 +825,10 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       return {
         needsBufferFlush: (payload?: INeedsBufferFlushPayload) => {
           let wantedSeekingTime: number;
-          const currentTime = playbackObserver.getCurrentTime();
+          const lastObservation = playbackObserver.getReference().getValue();
+          const currentTime = lastObservation.position.isAwaitingFuturePosition()
+            ? lastObservation.position.getWanted()
+            : mediaElement.currentTime;
           const relativeResumingPosition = payload?.relativeResumingPosition ?? 0;
           const canBeApproximateSeek = Boolean(payload?.relativePosHasBeenDefaulted);
 
