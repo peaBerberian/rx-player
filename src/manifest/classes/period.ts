@@ -86,6 +86,9 @@ export default class Period implements IPeriodMetadata {
     this.adaptations = (
       Object.keys(args.adaptations) as ITrackType[]
     ).reduce<IManifestAdaptations>((acc, type) => {
+      if (type === "video") {
+        return acc;
+      }
       const adaptationsForType = args.adaptations[type];
       if (isNullOrUndefined(adaptationsForType)) {
         return acc;
@@ -111,7 +114,7 @@ export default class Period implements IPeriodMetadata {
           (adaptation) => adaptation.supportStatus.hasSupportedCodec === false,
         ) &&
         adaptationsForType.length > 0 &&
-        (type === "video" || type === "audio")
+        type === "audio"
       ) {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
@@ -173,6 +176,9 @@ export default class Period implements IPeriodMetadata {
     cachedCodecSupport: CodecSupportCache,
   ) {
     (Object.keys(this.adaptations) as ITrackType[]).forEach((ttype) => {
+      if (ttype === "video") {
+        return;
+      }
       const adaptationsForType = this.adaptations[ttype];
       if (adaptationsForType === undefined) {
         return;
@@ -207,7 +213,7 @@ export default class Period implements IPeriodMetadata {
           hasSupportedAdaptations = true;
         }
       }
-      if ((ttype === "video" || ttype === "audio") && hasSupportedAdaptations === false) {
+      if (ttype === "audio" && hasSupportedAdaptations === false) {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + ttype + " adaptations",
