@@ -126,6 +126,9 @@ export default async function renderThumbnail(
         thumbnailTrackId: thumbnailTrack.id,
       };
     }
+    if (canceller.signal.cancellationError !== null) {
+      throw canceller.signal.cancellationError;
+    }
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d");
     if (context === null) {
