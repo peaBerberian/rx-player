@@ -174,16 +174,45 @@ export function updateManifestCodecSupport(
         adaptation.supportStatus.hasSupportedCodec = hasSupportedCodec;
       }
     });
-
+    const hasSupportedMedia: Record<ITrackType, boolean> = {
+      audio: true,
+      video: true,
+      text: true,
+    };
     ["audio" as const, "video" as const].forEach((ttype: ITrackType) => {
       const forType = p.adaptations[ttype];
       if (
         forType !== undefined &&
         forType.every((a) => a.supportStatus.hasSupportedCodec === false)
       ) {
+        hasSupportedMedia[ttype] = false;
+      }
+    });
+
+    const isAudioAndVideoUnsupported =
+      !hasSupportedMedia.video && !hasSupportedMedia.audio;
+    const FLAG_ERROR_ON_MISSING_AUDIO = false;
+    const FLAG_ERROR_ON_MISSING_VIDEO = false;
+
+    ["video" as const, "audio" as const].forEach((tType) => {
+      if (hasSupportedMedia[tType]) {
+        // do nothing
+      } else if (isAudioAndVideoUnsupported) {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + ttype + " adaptations",
+          "No supported " + tType + " adaptations",
+          { tracks: undefined },
+        );
+      } else if (tType === "audio" && FLAG_ERROR_ON_MISSING_AUDIO) {
+        throw new MediaError(
+          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+          "No supported " + tType + " adaptations",
+          { tracks: undefined },
+        );
+      } else if (tType === "video" && FLAG_ERROR_ON_MISSING_VIDEO) {
+        throw new MediaError(
+          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+          "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
       }
