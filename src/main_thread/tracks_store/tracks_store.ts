@@ -389,23 +389,28 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     const dispatcher = new TrackDispatcher(adaptationRef);
     periodObj[bufferType].dispatcher = dispatcher;
 
+    const FLAG_ON_MISSING_AUDIO = "continue";
+    const FLAG_ON_MISSING_VIDEO = "continue";
+
     dispatcher.addEventListener("noPlayableRepresentation", () => {
-      const nextAdaptation = arrayFind(
-        period.adaptations[bufferType] ?? [],
-        (adaptation) => {
-          if (
-            adaptation.supportStatus.hasSupportedCodec === false ||
-            adaptation.supportStatus.isDecipherable === false
-          ) {
-            return false;
-          }
-          const playableRepresentations = adaptation.representations.filter(
-            (r) => isRepresentationPlayable(r) === true,
-          );
-          return playableRepresentations.length > 0;
-        },
-      );
-      if (nextAdaptation === undefined) {
+      const nextAdaptation = findNextPlayableAdaptation(period, bufferType);
+      if (
+        nextAdaptation === undefined &&
+        bufferType === "audio" &&
+        FLAG_ON_MISSING_AUDIO === "continue" &&
+        findNextPlayableAdaptation(period, "video")
+      ) {
+        // Audio is not playable but video is playable, let's continue the playback.
+        log.warn(`TS: No playable audio, continuing with video only`);
+      } else if (
+        nextAdaptation === undefined &&
+        bufferType === "video" &&
+        FLAG_ON_MISSING_VIDEO === "continue" &&
+        findNextPlayableAdaptation(period, "audio")
+      ) {
+        // Video is not playable but audio is playable, let's continue the playback.
+        log.warn(`TS: No playable video, continuing with audio only`);
+      } else if (nextAdaptation === undefined) {
         const noRepErr = new MediaError(
           "NO_PLAYABLE_REPRESENTATION",
           `No ${bufferType} Representation can be played`,
@@ -421,11 +426,15 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
       }
       const switchingMode =
         bufferType === "audio" ? this._defaultAudioTrackSwitchingMode : "reload";
-      const storedSettings = {
-        adaptation: nextAdaptation,
-        switchingMode,
-        lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(null),
-      };
+      const storedSettings = nextAdaptation
+        ? {
+            adaptation: nextAdaptation,
+            switchingMode,
+            lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
+              null,
+            ),
+          }
+        : null;
       typeInfo.storedSettings = storedSettings;
       this.trigger("trackUpdate", {
         period: toExposedPeriod(period),
@@ -1467,6 +1476,25 @@ function generatePeriodInfo(
 
 function toExposedPeriod(p: IPeriodMetadata): IPeriod {
   return { start: p.start, end: p.end, id: p.id };
+}
+
+function findNextPlayableAdaptation(
+  period: IPeriodMetadata,
+  type: "audio" | "text" | "video",
+): IAdaptationMetadata | undefined {
+  const nextAdaptation = arrayFind(period.adaptations[type] ?? [], (adaptation) => {
+    if (
+      adaptation.supportStatus.hasSupportedCodec === false ||
+      adaptation.supportStatus.isDecipherable === false
+    ) {
+      return false;
+    }
+    const playableRepresentations = adaptation.representations.filter(
+      (r) => isRepresentationPlayable(r) === true,
+    );
+    return playableRepresentations.length > 0;
+  });
+  return nextAdaptation;
 }
 
 /** Every information stored for a single Period. */
