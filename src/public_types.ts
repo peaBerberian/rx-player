@@ -140,6 +140,26 @@ export interface ILoadVideoOptions {
   onCodecSwitch?: "continue" | "reload";
 
   /**
+   * Specifies the behavior when all audio tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without audio.
+   * - If set to `"error"`, an error will be thrown to indicate that the audio tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onAudioTrackNotPlayable?: "continue" | "error";
+
+  /**
+   * Specifies the behavior when all video tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without video.
+   * - If set to `"error"`, an error will be thrown to indicate that the video tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onVideoTrackNotPlayable?: "continue" | "error";
+
+  /**
    * Whether we should check that an obtain segment is truncated and retry the
    * request if that's the case.
    */

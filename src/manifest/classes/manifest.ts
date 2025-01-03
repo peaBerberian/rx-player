@@ -60,6 +60,10 @@ interface IManifestParsingOptions {
    * manifest will be updated fully when it needs to be refreshed, and it will
    * fetched through the original URL. */
   manifestUpdateUrl?: string | undefined;
+  /** Specifies the behavior when audio tracks are not playable. */
+  onAudioTrackNotPlayable: "error" | "continue";
+  /** Specifies the behavior when video tracks are not playable. */
+  onVideoTrackNotPlayable: "error" | "continue";
 }
 
 /** Representation affected by a `decipherabilityUpdate` event. */
@@ -326,7 +330,12 @@ export default class Manifest
     warnings: IPlayerError[],
   ) {
     super();
-    const { representationFilter, manifestUpdateUrl } = options;
+    const {
+      representationFilter,
+      manifestUpdateUrl,
+      onAudioTrackNotPlayable,
+      onVideoTrackNotPlayable,
+    } = options;
     this.manifestFormat = ManifestMetadataFormat.Class;
     this.id = generateNewManifestId();
     this.expired = parsedManifest.expired ?? null;
@@ -341,6 +350,10 @@ export default class Manifest
           parsedPeriod,
           unsupportedAdaptations,
           this._cachedCodecSupport,
+          {
+            onAudioTrackNotPlayable,
+            onVideoTrackNotPlayable,
+          },
           representationFilter,
         );
         return period;

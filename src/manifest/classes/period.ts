@@ -60,6 +60,12 @@ export default class Period implements IPeriodMetadata {
   /** Array containing every stream event happening on the period */
   public streamEvents: IManifestStreamEvent[];
 
+  /** Specifies the behavior when audio tracks are not playable. */
+  private onAudioTrackNotPlayable: "error" | "continue";
+
+  /** Specifies the behavior when video tracks are not playable. */
+  private onVideoTrackNotPlayable: "error" | "continue";
+
   /**
    * @constructor
    * @param {Object} args
@@ -73,7 +79,10 @@ export default class Period implements IPeriodMetadata {
     args: IParsedPeriod,
     unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
-
+    options: {
+      onAudioTrackNotPlayable: "error" | "continue";
+      onVideoTrackNotPlayable: "error" | "continue";
+    },
     representationFilter?: IRepresentationFilter | undefined,
   ) {
     this.id = args.id;
@@ -103,6 +112,9 @@ export default class Period implements IPeriodMetadata {
       this.end = this.start + this.duration;
     }
     this.streamEvents = args.streamEvents === undefined ? [] : args.streamEvents;
+
+    this.onAudioTrackNotPlayable = options.onAudioTrackNotPlayable;
+    this.onVideoTrackNotPlayable = options.onVideoTrackNotPlayable;
   }
 
   private createAdaptationsObject(
@@ -180,11 +192,8 @@ export default class Period implements IPeriodMetadata {
   private checkIfStreamIsSupported(
     hasSupportedMedia: Record<ITrackType, boolean | undefined>,
   ) {
-    // console.log("DEBUG", hasSupportedMedia);
     const isAudioAndVideoUnsupported =
       hasSupportedMedia.video === false && hasSupportedMedia.audio === false;
-    const FLAG_ERROR_ON_MISSING_AUDIO = false;
-    const FLAG_ERROR_ON_MISSING_VIDEO = false;
 
     ["video" as const, "audio" as const].forEach((tType) => {
       if (hasSupportedMedia[tType] !== false) {
@@ -192,19 +201,19 @@ export default class Period implements IPeriodMetadata {
       } else if (isAudioAndVideoUnsupported) {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported2 " + tType + " adaptations",
+          "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "audio" && FLAG_ERROR_ON_MISSING_AUDIO) {
+      } else if (tType === "audio" && this.onAudioTrackNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported3 " + tType + " adaptations",
+          "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "video" && FLAG_ERROR_ON_MISSING_VIDEO) {
+      } else if (tType === "video" && this.onVideoTrackNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported4 " + tType + " adaptations",
+          "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
       }

@@ -818,4 +818,6 @@ export interface ITransportOptions {
   serverSyncInfos?: IServerSyncInfos | undefined;
   __priv_manifestUpdateUrl?: string | undefined;
   __priv_patchLastSegmentInSidx?: boolean | undefined;
+  onAudioTrackNotPlayable: "error" | "continue";
+  onVideoTrackNotPlayable: "error" | "continue";
 }

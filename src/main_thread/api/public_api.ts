@@ -786,6 +786,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       __priv_manifestUpdateUrl,
       __priv_patchLastSegmentInSidx,
       url,
+      onAudioTrackNotPlayable,
+      onVideoTrackNotPlayable,
     } = options;
 
     // Perform multiple checks on the given options
@@ -929,6 +931,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           serverSyncInfos,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
+          onAudioTrackNotPlayable,
+          onVideoTrackNotPlayable,
         });
         initializer = new features.mainThreadMediaSourceInit({
           adaptiveOptions,
@@ -971,6 +975,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           representationFilter: options.representationFilter,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
+          onAudioTrackNotPlayable,
+          onVideoTrackNotPlayable,
         };
         initializer = new features.multithread.init({
           adaptiveOptions,

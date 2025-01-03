@@ -191,8 +191,8 @@ export function updateManifestCodecSupport(
 
     const isAudioAndVideoUnsupported =
       !hasSupportedMedia.video && !hasSupportedMedia.audio;
-    const FLAG_ERROR_ON_MISSING_AUDIO = false;
-    const FLAG_ERROR_ON_MISSING_VIDEO = false;
+    const FLAG_ON_MISSING_AUDIO = "error";
+    const FLAG_ON_MISSING_VIDEO = "error";
 
     ["video" as const, "audio" as const].forEach((tType) => {
       if (hasSupportedMedia[tType]) {
@@ -203,13 +203,13 @@ export function updateManifestCodecSupport(
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "audio" && FLAG_ERROR_ON_MISSING_AUDIO) {
+      } else if (tType === "audio" && FLAG_ON_MISSING_AUDIO === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "video" && FLAG_ERROR_ON_MISSING_VIDEO) {
+      } else if (tType === "video" && FLAG_ON_MISSING_VIDEO === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
