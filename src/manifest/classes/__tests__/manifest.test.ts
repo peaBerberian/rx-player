@@ -145,12 +145,14 @@ describe("Manifest - Manifest", () => {
       period1,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       undefined,
     );
     expect(fakePeriod).toHaveBeenCalledWith(
       period2,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       undefined,
     );
 
@@ -216,12 +218,14 @@ describe("Manifest - Manifest", () => {
       period1,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       representationFilter,
     );
     expect(fakePeriod).toHaveBeenCalledWith(
       period2,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       representationFilter,
     );
     expect(fakeIdGenerator).toHaveBeenCalled();
@@ -269,12 +273,14 @@ describe("Manifest - Manifest", () => {
       period1,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       undefined,
     );
     expect(fakePeriod).toHaveBeenCalledWith(
       period2,
       [],
       new CodecSupportCache([]),
+      defaultManifestOptions,
       undefined,
     );
 

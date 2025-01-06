@@ -1,6 +1,7 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
-import CodecSupportCache from "../codec_support_cache";
-import IPeriod from "../period";
+import type { IManifestStreamEvent } from "../../../parsers/manifest";
+import type { IPeriod, IPeriodMetadata } from "../../index";
+import type { IManifestAdaptations } from "../period";
 import type {
   replacePeriods as IReplacePeriods,
   updatePeriods as IUpatePeriods,
@@ -17,7 +18,17 @@ const fakeUpdatePeriodInPlaceRes = {
   addedAdaptations: [],
 };
 
-class FakePeriod extends IPeriod {
+class FakePeriod implements IPeriodMetadata {
+  public readonly id: string;
+  public adaptations: IManifestAdaptations;
+  public start: number;
+  public duration: number | undefined;
+  public end: number | undefined;
+  public streamEvents: IManifestStreamEvent[];
+
+  public onAudioTrackNotPlayable: "continue" | "error";
+  public onVideoTrackNotPlayable: "continue" | "error";
+
   constructor({
     id,
     start,
@@ -27,20 +38,29 @@ class FakePeriod extends IPeriod {
     start?: number | undefined;
     end?: number | undefined;
   }) {
-    super(
-      {
-        id: id ?? String(start),
-        start: start ?? 0,
-        end,
-        duration: end === undefined ? undefined : end - (start ?? 0),
-        streamEvents: [],
-        adaptations: {},
-      },
-      [],
-      new CodecSupportCache([]),
-      { onAudioTrackNotPlayable: "continue", onVideoTrackNotPlayable: "continue" },
-    );
+    this.id = id ?? String(start);
+    this.start = start ?? 0;
+    this.end = end;
+    this.duration = end === undefined ? undefined : end - (start ?? 0);
+    this.streamEvents = [];
+    this.adaptations = {};
+    this.onAudioTrackNotPlayable = "continue";
+    this.onVideoTrackNotPlayable = "error";
   }
+  createAdaptationsObject() {
+    return {};
+  }
+  getMediaSupport() {
+    return {
+      video: true,
+      audio: true,
+      text: true,
+    };
+  }
+  checkIfStreamIsSupported() {
+    // noop
+  }
+
   refreshCodecSupport() {
     // noop
   }
@@ -79,7 +99,7 @@ function generateFakePeriod({
   start?: number | undefined;
   end?: number | undefined;
 }): IPeriod {
-  return new FakePeriod({ id, start, end }) as unknown as IPeriod;
+  return new FakePeriod({ id, start, end }) as IPeriod;
 }
 
 describe("Manifest - replacePeriods", () => {

@@ -293,6 +293,8 @@ describe("API - parseLoadVideoOptions", () => {
     minimumManifestUpdateInterval: 0,
     mode: "auto",
     onCodecSwitch: "continue",
+    onAudioTrackNotPlayable: "continue",
+    onVideoTrackNotPlayable: "continue",
     requestConfig: {},
     referenceDateTime: undefined,
     representationFilter: undefined,

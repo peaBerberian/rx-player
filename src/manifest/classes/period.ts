@@ -61,10 +61,10 @@ export default class Period implements IPeriodMetadata {
   public streamEvents: IManifestStreamEvent[];
 
   /** Specifies the behavior when audio tracks are not playable. */
-  private onAudioTrackNotPlayable: "error" | "continue";
+  public onAudioTrackNotPlayable: "error" | "continue";
 
   /** Specifies the behavior when video tracks are not playable. */
-  private onVideoTrackNotPlayable: "error" | "continue";
+  public onVideoTrackNotPlayable: "error" | "continue";
 
   /**
    * @constructor
@@ -86,24 +86,24 @@ export default class Period implements IPeriodMetadata {
     representationFilter?: IRepresentationFilter | undefined,
   ) {
     this.id = args.id;
+    this.onAudioTrackNotPlayable = options.onAudioTrackNotPlayable;
+    this.onVideoTrackNotPlayable = options.onVideoTrackNotPlayable;
+
     this.adaptations = this.createAdaptationsObject(
       args.adaptations,
-      unsupportedAdaptations,
       cachedCodecSupport,
       representationFilter,
     );
-    const mediaSupport = this.getMediaSupport(unsupportedAdaptations);
-    this.checkIfStreamIsSupported(mediaSupport);
 
-    if (
-      !Array.isArray(this.adaptations.video) &&
-      !Array.isArray(this.adaptations.audio)
-    ) {
+    if (isArrayEmpty(this.adaptations.video) && isArrayEmpty(this.adaptations.audio)) {
       throw new MediaError(
         "MANIFEST_PARSE_ERROR",
         "No supported audio and video tracks.",
       );
     }
+
+    const mediaSupport = this.getMediaSupport(unsupportedAdaptations);
+    this.checkIfStreamIsSupported(mediaSupport);
 
     this.duration = args.duration;
     this.start = args.start;
@@ -112,14 +112,10 @@ export default class Period implements IPeriodMetadata {
       this.end = this.start + this.duration;
     }
     this.streamEvents = args.streamEvents === undefined ? [] : args.streamEvents;
-
-    this.onAudioTrackNotPlayable = options.onAudioTrackNotPlayable;
-    this.onVideoTrackNotPlayable = options.onVideoTrackNotPlayable;
   }
 
-  private createAdaptationsObject(
+  createAdaptationsObject(
     adaptations: IParsedAdaptations,
-    unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
     representationFilter: IRepresentationFilter | undefined,
   ): Partial<Record<ITrackType, Adaptation[]>> {
@@ -133,20 +129,16 @@ export default class Period implements IPeriodMetadata {
           const newAdaptation = new Adaptation(adaptation, cachedCodecSupport, {
             representationFilter,
           });
-          if (newAdaptation.supportStatus.hasSupportedCodec === false) {
-            unsupportedAdaptations.push(newAdaptation);
-          }
           return newAdaptation;
         })
         .filter(
           (adaptation): adaptation is Adaptation => adaptation.representations.length > 0,
         );
-      //
     }
     return manifestAdaptations;
   }
 
-  private getMediaSupport(
+  getMediaSupport(
     unsupportedAdaptations: Adaptation[],
   ): Record<ITrackType, boolean | undefined> {
     const hasSupportedMedia: Record<ITrackType, boolean | undefined> = {
@@ -189,9 +181,7 @@ export default class Period implements IPeriodMetadata {
     return hasSupportedMedia;
   }
 
-  private checkIfStreamIsSupported(
-    hasSupportedMedia: Record<ITrackType, boolean | undefined>,
-  ) {
+  checkIfStreamIsSupported(hasSupportedMedia: Record<ITrackType, boolean | undefined>) {
     const isAudioAndVideoUnsupported =
       hasSupportedMedia.video === false && hasSupportedMedia.audio === false;
 
@@ -365,5 +355,13 @@ export default class Period implements IPeriodMetadata {
       streamEvents: this.streamEvents,
       adaptations,
     };
+  }
+}
+
+function isArrayEmpty(array: unknown[] | undefined) {
+  if (!Array.isArray(array)) {
+    return true;
+  } else {
+    return array.length === 0;
   }
 }
