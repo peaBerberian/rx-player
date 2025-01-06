@@ -993,6 +993,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           textTrackOptions,
           worker: this._priv_worker,
           url,
+          onAudioTrackNotPlayable,
+          onVideoTrackNotPlayable,
         });
       }
     } else {
@@ -1084,7 +1086,10 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       this._priv_onBitrateEstimateChange(bitrateEstimateInfo),
     );
     initializer.addEventListener("manifestReady", (manifest) =>
-      this._priv_onManifestReady(contentInfos, manifest),
+      this._priv_onManifestReady(contentInfos, manifest, {
+        onAudioTrackNotPlayable,
+        onVideoTrackNotPlayable,
+      }),
     );
     initializer.addEventListener("manifestUpdate", (updates) =>
       this._priv_onManifestUpdate(contentInfos, updates),
@@ -2570,6 +2575,10 @@ class Player extends EventEmitter<IPublicAPIEvent> {
   private _priv_onManifestReady(
     contentInfos: IPublicApiContentInfos,
     manifest: IManifest | IManifestMetadata,
+    options: {
+      onAudioTrackNotPlayable: "continue" | "error";
+      onVideoTrackNotPlayable: "continue" | "error";
+    },
   ): void {
     if (contentInfos.contentId !== this._priv_contentInfos?.contentId) {
       return; // Event for another content
@@ -2583,6 +2592,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const tracksStore = new TracksStore({
       preferTrickModeTracks: this._priv_preferTrickModeTracks,
       defaultAudioTrackSwitchingMode: contentInfos.defaultAudioTrackSwitchingMode,
+      onAudioTrackNotPlayable: options.onAudioTrackNotPlayable,
+      onVideoTrackNotPlayable: options.onVideoTrackNotPlayable,
     });
     contentInfos.tracksStore = tracksStore;
     tracksStore.addEventListener("newAvailablePeriods", (p) => {

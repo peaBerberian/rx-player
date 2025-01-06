@@ -63,6 +63,10 @@ export function getCodecsWithUnknownSupport(
 export function updateManifestCodecSupport(
   manifest: IManifestMetadata,
   contentDecryptor: ContentDecryptor | null,
+  options: {
+    onAudioTrackNotPlayable: "error" | "continue";
+    onVideoTrackNotPlayable: "error" | "continue";
+  },
 ): ICodecSupportInfo[] {
   const codecSupportMap: Map<
     string,
@@ -191,8 +195,6 @@ export function updateManifestCodecSupport(
 
     const isAudioAndVideoUnsupported =
       !hasSupportedMedia.video && !hasSupportedMedia.audio;
-    const FLAG_ON_MISSING_AUDIO = "error";
-    const FLAG_ON_MISSING_VIDEO = "error";
 
     ["video" as const, "audio" as const].forEach((tType) => {
       if (hasSupportedMedia[tType]) {
@@ -203,13 +205,13 @@ export function updateManifestCodecSupport(
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "audio" && FLAG_ON_MISSING_AUDIO === "error") {
+      } else if (tType === "audio" && options.onAudioTrackNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "video" && FLAG_ON_MISSING_VIDEO === "error") {
+      } else if (tType === "video" && options.onVideoTrackNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
