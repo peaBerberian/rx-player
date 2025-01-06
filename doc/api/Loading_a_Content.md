@@ -706,6 +706,44 @@ Those are the possible values for that option:
   More information about the `"RELOADING"` state can be found in
   [the player states documentation](./Player_States.md).
 
+### onAudioTrackNotPlayable
+
+_type_: `string|undefined`
+
+_defaults_: `"continue"`
+
+Specifies the behavior when all audio tracks are not playable.
+
+Those are the possible values for that option:
+
+- `"continue"`: The player will proceed to play the content without audio.
+
+- `"error"`: The player will throw an error to indicate that the audio tracks could not be
+  played.
+
+<div class="note">
+If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+</div>
+
+### onVideoTrackNotPlayable
+
+_type_: `string|undefined`
+
+_defaults_: `"continue"`
+
+Specifies the behavior when all video tracks are not playable.
+
+Those are the possible values for that option:
+
+- `"continue"`: The player will proceed to play the content without video.
+
+- `"error"`: The player will throw an error to indicate that the video tracks could not be
+  played.
+
+<div class="note">
+If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+</div>
+
 ### lowLatencyMode
 
 _type_: `Boolean|undefined`
@@ -927,7 +965,7 @@ The `serverSyncInfos` object contains two keys:
   <div class="note">
   The `performance.now()` API is used here because it is the main API to
   obtain a monotically increasing clock on the client-side.
-  </div</div>
+  </div>
 
 Example:
 

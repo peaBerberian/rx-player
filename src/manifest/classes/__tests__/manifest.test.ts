@@ -11,6 +11,11 @@ import CodecSupportCache from "../codec_support_cache";
 import type IManifest from "../manifest";
 import type IPeriod from "../period";
 
+const defaultManifestOptions = {
+  onAudioTrackNotPlayable: "continue" as const,
+  onVideoTrackNotPlayable: "continue" as const,
+};
+
 function generateParsedPeriod(
   id: string,
   start: number,
@@ -82,7 +87,7 @@ describe("Manifest - Manifest", () => {
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
     const warnings: IPlayerError[] = [];
-    const manifest = new Manifest(simpleFakeManifest, {}, warnings);
+    const manifest = new Manifest(simpleFakeManifest, defaultManifestOptions, warnings);
 
     expect(manifest.adaptations).toEqual({});
     expect(manifest.availabilityStartTime).toEqual(undefined);
@@ -134,7 +139,7 @@ describe("Manifest - Manifest", () => {
     }));
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const manifest = new Manifest(simpleFakeManifest, {}, []);
+    const manifest = new Manifest(simpleFakeManifest, defaultManifestOptions, []);
     expect(fakePeriod).toHaveBeenCalledTimes(2);
     expect(fakePeriod).toHaveBeenCalledWith(
       period1,
@@ -196,7 +201,14 @@ describe("Manifest - Manifest", () => {
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
 
-    const manifest = new Manifest(simpleFakeManifest, { representationFilter }, []);
+    const manifest = new Manifest(
+      simpleFakeManifest,
+      {
+        representationFilter,
+        ...defaultManifestOptions,
+      },
+      [],
+    );
     expect(manifest).not.toBe(null);
 
     expect(fakePeriod).toHaveBeenCalledTimes(2);
@@ -251,7 +263,7 @@ describe("Manifest - Manifest", () => {
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
 
-    const manifest = new Manifest(simpleFakeManifest, {}, []);
+    const manifest = new Manifest(simpleFakeManifest, defaultManifestOptions, []);
     expect(fakePeriod).toHaveBeenCalledTimes(2);
     expect(fakePeriod).toHaveBeenCalledWith(
       period1,
@@ -320,7 +332,7 @@ describe("Manifest - Manifest", () => {
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
 
     const warnings: IPlayerError[] = [];
-    new Manifest(simpleFakeManifest, {}, warnings);
+    new Manifest(simpleFakeManifest, defaultManifestOptions, warnings);
     expect(warnings).toHaveLength(1);
     expect(warnings[0].type).toEqual("MEDIA_ERROR");
     expect(warnings[0].code).toEqual("MANIFEST_INCOMPATIBLE_CODECS_ERROR");
@@ -396,7 +408,7 @@ describe("Manifest - Manifest", () => {
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
     const warnings: IPlayerError[] = [];
-    const manifest = new Manifest(oldManifestArgs, {}, warnings);
+    const manifest = new Manifest(oldManifestArgs, defaultManifestOptions, warnings);
 
     expect(manifest.adaptations).toEqual(oldPeriod1.adaptations);
     expect(manifest.availabilityStartTime).toEqual(5);
@@ -465,7 +477,7 @@ describe("Manifest - Manifest", () => {
       uris: ["url1", "url2"],
     };
 
-    const manifest1 = new Manifest(oldManifestArgs1, {}, []);
+    const manifest1 = new Manifest(oldManifestArgs1, defaultManifestOptions, []);
     expect(manifest1.getUrls()).toEqual(["url1", "url2"]);
 
     const oldManifestArgs2 = {
@@ -494,7 +506,7 @@ describe("Manifest - Manifest", () => {
       },
       uris: [],
     };
-    const manifest2 = new Manifest(oldManifestArgs2, {}, []);
+    const manifest2 = new Manifest(oldManifestArgs2, defaultManifestOptions, []);
     expect(manifest2.getUrls()).toEqual([]);
   });
 
@@ -549,7 +561,7 @@ describe("Manifest - Manifest", () => {
     };
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const manifest = new Manifest(oldManifestArgs, {}, []);
+    const manifest = new Manifest(oldManifestArgs, defaultManifestOptions, []);
 
     const mockTrigger = vi
       .spyOn(
