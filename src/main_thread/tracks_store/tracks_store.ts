@@ -103,16 +103,16 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
   private _defaultAudioTrackSwitchingMode: IAudioTrackSwitchingMode;
 
   /** Specifies the behavior when audio tracks are not playable. */
-  private onAudioTrackNotPlayable: "error" | "continue";
+  private onAudioTracksNotPlayable: "error" | "continue";
 
   /** Specifies the behavior when video tracks are not playable. */
-  private onVideoTrackNotPlayable: "error" | "continue";
+  private onVideoTracksNotPlayable: "error" | "continue";
 
   constructor(args: {
     preferTrickModeTracks: boolean;
     defaultAudioTrackSwitchingMode: IAudioTrackSwitchingMode | undefined;
-    onAudioTrackNotPlayable: "error" | "continue";
-    onVideoTrackNotPlayable: "error" | "continue";
+    onAudioTracksNotPlayable: "error" | "continue";
+    onVideoTracksNotPlayable: "error" | "continue";
   }) {
     super();
     this._storedPeriodInfo = [];
@@ -122,8 +122,8 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     this._defaultAudioTrackSwitchingMode =
       args.defaultAudioTrackSwitchingMode ??
       config.getCurrent().DEFAULT_AUDIO_TRACK_SWITCHING_MODE;
-    this.onAudioTrackNotPlayable = args.onAudioTrackNotPlayable;
-    this.onVideoTrackNotPlayable = args.onVideoTrackNotPlayable;
+    this.onAudioTracksNotPlayable = args.onAudioTracksNotPlayable;
+    this.onVideoTracksNotPlayable = args.onVideoTracksNotPlayable;
   }
 
   /**
@@ -404,7 +404,7 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
       if (
         nextAdaptation === undefined &&
         bufferType === "audio" &&
-        this.onAudioTrackNotPlayable === "continue" &&
+        this.onAudioTracksNotPlayable === "continue" &&
         findNextPlayableAdaptation(period, "video")
       ) {
         // Audio is not playable but video is playable, let's continue the playback.
@@ -412,7 +412,7 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
       } else if (
         nextAdaptation === undefined &&
         bufferType === "video" &&
-        this.onVideoTrackNotPlayable === "continue" &&
+        this.onVideoTracksNotPlayable === "continue" &&
         findNextPlayableAdaptation(period, "audio")
       ) {
         // Video is not playable but audio is playable, let's continue the playback.

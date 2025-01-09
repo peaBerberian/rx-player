@@ -81,8 +81,8 @@ export default function (transportOptions: ITransportOptions): ITransportPipelin
         parserResult,
         {
           representationFilter: transportOptions.representationFilter,
-          onAudioTrackNotPlayable: transportOptions.onAudioTrackNotPlayable,
-          onVideoTrackNotPlayable: transportOptions.onVideoTrackNotPlayable,
+          onAudioTracksNotPlayable: transportOptions.onAudioTracksNotPlayable,
+          onVideoTracksNotPlayable: transportOptions.onVideoTracksNotPlayable,
         },
         warnings,
       );

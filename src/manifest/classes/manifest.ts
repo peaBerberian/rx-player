@@ -61,9 +61,9 @@ interface IManifestParsingOptions {
    * fetched through the original URL. */
   manifestUpdateUrl?: string | undefined;
   /** Specifies the behavior when audio tracks are not playable. */
-  onAudioTrackNotPlayable: "error" | "continue";
+  onAudioTracksNotPlayable: "error" | "continue";
   /** Specifies the behavior when video tracks are not playable. */
-  onVideoTrackNotPlayable: "error" | "continue";
+  onVideoTracksNotPlayable: "error" | "continue";
 }
 
 /** Representation affected by a `decipherabilityUpdate` event. */
@@ -333,8 +333,8 @@ export default class Manifest
     const {
       representationFilter,
       manifestUpdateUrl,
-      onAudioTrackNotPlayable,
-      onVideoTrackNotPlayable,
+      onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable,
     } = options;
     this.manifestFormat = ManifestMetadataFormat.Class;
     this.id = generateNewManifestId();
@@ -351,8 +351,8 @@ export default class Manifest
           unsupportedAdaptations,
           this._cachedCodecSupport,
           {
-            onAudioTrackNotPlayable,
-            onVideoTrackNotPlayable,
+            onAudioTracksNotPlayable,
+            onVideoTracksNotPlayable,
           },
           representationFilter,
         );

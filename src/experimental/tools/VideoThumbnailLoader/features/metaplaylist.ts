@@ -20,13 +20,13 @@ import type { ILoaders } from "../types";
 
 export default function addMplFeature(loaders: ILoaders): void {
   const {
-    DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR,
-    DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR,
+    DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
+    DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
   } = config.getCurrent();
   const transports = mpl({
     lowLatencyMode: false,
-    onAudioTrackNotPlayable: DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR,
-    onVideoTrackNotPlayable: DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR,
+    onAudioTracksNotPlayable: DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
+    onVideoTracksNotPlayable: DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
   });
   loaders.metaplaylist = transports;
 }

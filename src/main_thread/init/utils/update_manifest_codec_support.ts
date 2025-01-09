@@ -64,8 +64,8 @@ export function updateManifestCodecSupport(
   manifest: IManifestMetadata,
   contentDecryptor: ContentDecryptor | null,
   options: {
-    onAudioTrackNotPlayable: "error" | "continue";
-    onVideoTrackNotPlayable: "error" | "continue";
+    onAudioTracksNotPlayable: "error" | "continue";
+    onVideoTracksNotPlayable: "error" | "continue";
   },
 ): ICodecSupportInfo[] {
   const codecSupportMap: Map<
@@ -205,13 +205,13 @@ export function updateManifestCodecSupport(
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "audio" && options.onAudioTrackNotPlayable === "error") {
+      } else if (tType === "audio" && options.onAudioTracksNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "video" && options.onVideoTrackNotPlayable === "error") {
+      } else if (tType === "video" && options.onVideoTracksNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",

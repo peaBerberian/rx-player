@@ -105,7 +105,7 @@ const DEFAULT_CONFIG = {
    *
    * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
    */
-  DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR: "continue" as "continue" | "error",
+  DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR: "continue" as "continue" | "error",
 
   /**
    * Specifies the behavior when all video tracks are not playable.
@@ -115,7 +115,7 @@ const DEFAULT_CONFIG = {
    *
    * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
    */
-  DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR: "continue" as "continue" | "error",
+  DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR: "continue" as "continue" | "error",
 
   /**
    * If set to true, video through loadVideo will auto play by default

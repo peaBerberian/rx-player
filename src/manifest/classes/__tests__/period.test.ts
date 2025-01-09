@@ -5,8 +5,8 @@ import CodecSupportCache from "../codec_support_cache";
 import type IPeriod from "../period";
 
 const defaultPeriodOptions = {
-  onAudioTrackNotPlayable: "continue" as const,
-  onVideoTrackNotPlayable: "continue" as const,
+  onAudioTracksNotPlayable: "continue" as const,
+  onVideoTracksNotPlayable: "continue" as const,
 };
 
 describe("Manifest - Period", () => {
@@ -251,8 +251,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onAudioTrackNotPlayable: "error",
-        onVideoTrackNotPlayable: "error",
+        onAudioTracksNotPlayable: "error",
+        onVideoTracksNotPlayable: "error",
       });
     } catch (e) {
       errorReceived = e;
@@ -354,8 +354,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onAudioTrackNotPlayable: "error",
-        onVideoTrackNotPlayable: "error",
+        onAudioTracksNotPlayable: "error",
+        onVideoTracksNotPlayable: "error",
       });
     } catch (e) {
       errorReceived = e;
@@ -380,7 +380,7 @@ describe("Manifest - Period", () => {
     expect(errorReceived.message).toContain("No supported audio adaptations");
   });
 
-  it(`should continue if no audio Adaptation is supported with onAudioTrackNotPlayable to "continue"`, async () => {
+  it(`should continue if no audio Adaptation is supported with onAudioTracksNotPlayable to "continue"`, async () => {
     const mockAdaptation = vi.fn(
       (arg: IParsedAdaptation): Adaptation =>
         ({
@@ -459,8 +459,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onAudioTrackNotPlayable: "continue",
-        onVideoTrackNotPlayable: "error",
+        onAudioTracksNotPlayable: "continue",
+        onVideoTracksNotPlayable: "error",
       });
     } catch (e) {
       errorReceived = e;
@@ -548,8 +548,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onAudioTrackNotPlayable: "error",
-        onVideoTrackNotPlayable: "error",
+        onAudioTracksNotPlayable: "error",
+        onVideoTracksNotPlayable: "error",
       });
     } catch (e) {
       errorReceived = e;
@@ -644,8 +644,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onVideoTrackNotPlayable: "error",
-        onAudioTrackNotPlayable: "error",
+        onVideoTracksNotPlayable: "error",
+        onAudioTracksNotPlayable: "error",
       });
     } catch (e) {
       errorReceived = e;
@@ -668,7 +668,7 @@ describe("Manifest - Period", () => {
     expect(errorReceived.message).toContain("No supported video adaptation");
   });
 
-  it(`should continue if no video Adaptation is supported with onVideoTrackNotPlayable to "continue"`, async () => {
+  it(`should continue if no video Adaptation is supported with onVideoTracksNotPlayable to "continue"`, async () => {
     const mockAdaptation = vi.fn(
       (arg: IParsedAdaptation): Adaptation =>
         ({
@@ -740,8 +740,8 @@ describe("Manifest - Period", () => {
     try {
       const codecSupportCache = new CodecSupportCache([]);
       period = new Period(args, unsupportedAdaptations, codecSupportCache, {
-        onAudioTrackNotPlayable: "error",
-        onVideoTrackNotPlayable: "continue",
+        onAudioTracksNotPlayable: "error",
+        onVideoTracksNotPlayable: "continue",
       });
     } catch (e) {
       errorReceived = e;

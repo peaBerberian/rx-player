@@ -61,10 +61,10 @@ export default class Period implements IPeriodMetadata {
   public streamEvents: IManifestStreamEvent[];
 
   /** Specifies the behavior when audio tracks are not playable. */
-  public onAudioTrackNotPlayable: "error" | "continue";
+  public onAudioTracksNotPlayable: "error" | "continue";
 
   /** Specifies the behavior when video tracks are not playable. */
-  public onVideoTrackNotPlayable: "error" | "continue";
+  public onVideoTracksNotPlayable: "error" | "continue";
 
   /**
    * @constructor
@@ -80,14 +80,14 @@ export default class Period implements IPeriodMetadata {
     unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
     options: {
-      onAudioTrackNotPlayable: "error" | "continue";
-      onVideoTrackNotPlayable: "error" | "continue";
+      onAudioTracksNotPlayable: "error" | "continue";
+      onVideoTracksNotPlayable: "error" | "continue";
     },
     representationFilter?: IRepresentationFilter | undefined,
   ) {
     this.id = args.id;
-    this.onAudioTrackNotPlayable = options.onAudioTrackNotPlayable;
-    this.onVideoTrackNotPlayable = options.onVideoTrackNotPlayable;
+    this.onAudioTracksNotPlayable = options.onAudioTracksNotPlayable;
+    this.onVideoTracksNotPlayable = options.onVideoTracksNotPlayable;
 
     this.adaptations = this.createAdaptationsObject(
       args.adaptations,
@@ -194,13 +194,13 @@ export default class Period implements IPeriodMetadata {
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "audio" && this.onAudioTrackNotPlayable === "error") {
+      } else if (tType === "audio" && this.onAudioTracksNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",
           { tracks: undefined },
         );
-      } else if (tType === "video" && this.onVideoTrackNotPlayable === "error") {
+      } else if (tType === "video" && this.onVideoTracksNotPlayable === "error") {
         throw new MediaError(
           "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
           "No supported " + tType + " adaptations",

@@ -706,7 +706,7 @@ Those are the possible values for that option:
   More information about the `"RELOADING"` state can be found in
   [the player states documentation](./Player_States.md).
 
-### onAudioTrackNotPlayable
+### onAudioTracksNotPlayable
 
 _type_: `string|undefined`
 
@@ -725,7 +725,7 @@ Those are the possible values for that option:
 If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
 </div>
 
-### onVideoTrackNotPlayable
+### onVideoTracksNotPlayable
 
 _type_: `string|undefined`
 

@@ -147,7 +147,7 @@ export interface ILoadVideoOptions {
    *
    * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
    */
-  onAudioTrackNotPlayable?: "continue" | "error";
+  onAudioTracksNotPlayable?: "continue" | "error";
 
   /**
    * Specifies the behavior when all video tracks are not playable.
@@ -157,7 +157,7 @@ export interface ILoadVideoOptions {
    *
    * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
    */
-  onVideoTrackNotPlayable?: "continue" | "error";
+  onVideoTracksNotPlayable?: "continue" | "error";
 
   /**
    * Whether we should check that an obtain segment is truncated and retry the

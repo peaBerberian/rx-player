@@ -79,8 +79,8 @@ interface IParsedLoadVideoOptionsBase {
   enableFastSwitching: boolean;
   defaultAudioTrackSwitchingMode: IAudioTrackSwitchingMode | undefined;
   onCodecSwitch: "continue" | "reload";
-  onAudioTrackNotPlayable: "continue" | "error";
-  onVideoTrackNotPlayable: "continue" | "error";
+  onAudioTracksNotPlayable: "continue" | "error";
+  onVideoTracksNotPlayable: "continue" | "error";
   checkMediaSegmentIntegrity?: boolean | undefined;
   checkManifestIntegrity?: boolean | undefined;
   manifestLoader?: IManifestLoader | undefined;
@@ -291,8 +291,8 @@ function parseLoadVideoOptions(options: ILoadVideoOptions): IParsedLoadVideoOpti
     DEFAULT_CODEC_SWITCHING_BEHAVIOR,
     DEFAULT_ENABLE_FAST_SWITCHING,
     DEFAULT_TEXT_TRACK_MODE,
-    DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR,
-    DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR,
+    DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
+    DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
   } = config.getCurrent();
 
   if (isNullOrUndefined(options)) {
@@ -380,40 +380,40 @@ function parseLoadVideoOptions(options: ILoadVideoOptions): IParsedLoadVideoOpti
     onCodecSwitch = DEFAULT_CODEC_SWITCHING_BEHAVIOR;
   }
 
-  let onAudioTrackNotPlayable: "continue" | "error" = isNullOrUndefined(
-    options.onAudioTrackNotPlayable,
+  let onAudioTracksNotPlayable: "continue" | "error" = isNullOrUndefined(
+    options.onAudioTracksNotPlayable,
   )
-    ? DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR
-    : options.onAudioTrackNotPlayable;
-  if (!arrayIncludes(["continue", "error"], onAudioTrackNotPlayable)) {
+    ? DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR
+    : options.onAudioTracksNotPlayable;
+  if (!arrayIncludes(["continue", "error"], onAudioTracksNotPlayable)) {
     log.warn(
-      "The `onAudioTrackNotPlayable` loadVideo option must match one of " +
+      "The `onAudioTracksNotPlayable` loadVideo option must match one of " +
         "the following string:\n" +
         "- `continue`\n" +
         "- `error`\n" +
         "If badly set, " +
-        DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR +
+        DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR +
         " will be used as default",
     );
-    onAudioTrackNotPlayable = DEFAULT_AUDIO_TRACK_NOT_PLAYABLE_BEHAVIOR;
+    onAudioTracksNotPlayable = DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR;
   }
 
-  let onVideoTrackNotPlayable: "continue" | "error" = isNullOrUndefined(
-    options.onVideoTrackNotPlayable,
+  let onVideoTracksNotPlayable: "continue" | "error" = isNullOrUndefined(
+    options.onVideoTracksNotPlayable,
   )
-    ? DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR
-    : options.onVideoTrackNotPlayable;
-  if (!arrayIncludes(["continue", "error"], onVideoTrackNotPlayable)) {
+    ? DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR
+    : options.onVideoTracksNotPlayable;
+  if (!arrayIncludes(["continue", "error"], onVideoTracksNotPlayable)) {
     log.warn(
-      "The `onVideoTrackNotPlayable` loadVideo option must match one of " +
+      "The `onVideoTracksNotPlayable` loadVideo option must match one of " +
         "the following string:\n" +
         "- `continue`\n" +
         "- `error`\n" +
         "If badly set, " +
-        DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR +
+        DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR +
         " will be used as default",
     );
-    onVideoTrackNotPlayable = DEFAULT_VIDEO_TRACK_NOT_PLAYABLE_BEHAVIOR;
+    onVideoTracksNotPlayable = DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR;
   }
 
   if (isNullOrUndefined(options.textTrackMode)) {
@@ -490,8 +490,8 @@ function parseLoadVideoOptions(options: ILoadVideoOptions): IParsedLoadVideoOpti
     minimumManifestUpdateInterval,
     requestConfig,
     onCodecSwitch,
-    onAudioTrackNotPlayable,
-    onVideoTrackNotPlayable,
+    onAudioTracksNotPlayable,
+    onVideoTracksNotPlayable,
     referenceDateTime: options.referenceDateTime,
     representationFilter: options.representationFilter,
     segmentLoader: options.segmentLoader,

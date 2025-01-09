@@ -786,8 +786,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       __priv_manifestUpdateUrl,
       __priv_patchLastSegmentInSidx,
       url,
-      onAudioTrackNotPlayable,
-      onVideoTrackNotPlayable,
+      onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable,
     } = options;
 
     // Perform multiple checks on the given options
@@ -931,8 +931,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           serverSyncInfos,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
-          onAudioTrackNotPlayable,
-          onVideoTrackNotPlayable,
+          onAudioTracksNotPlayable,
+          onVideoTracksNotPlayable,
         });
         initializer = new features.mainThreadMediaSourceInit({
           adaptiveOptions,
@@ -975,8 +975,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           representationFilter: options.representationFilter,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
-          onAudioTrackNotPlayable,
-          onVideoTrackNotPlayable,
+          onAudioTracksNotPlayable,
+          onVideoTracksNotPlayable,
         };
         initializer = new features.multithread.init({
           adaptiveOptions,
@@ -993,8 +993,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           textTrackOptions,
           worker: this._priv_worker,
           url,
-          onAudioTrackNotPlayable,
-          onVideoTrackNotPlayable,
+          onAudioTracksNotPlayable,
+          onVideoTracksNotPlayable,
         });
       }
     } else {
@@ -1087,8 +1087,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     );
     initializer.addEventListener("manifestReady", (manifest) =>
       this._priv_onManifestReady(contentInfos, manifest, {
-        onAudioTrackNotPlayable,
-        onVideoTrackNotPlayable,
+        onAudioTracksNotPlayable,
+        onVideoTracksNotPlayable,
       }),
     );
     initializer.addEventListener("manifestUpdate", (updates) =>
@@ -2576,8 +2576,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     contentInfos: IPublicApiContentInfos,
     manifest: IManifest | IManifestMetadata,
     options: {
-      onAudioTrackNotPlayable: "continue" | "error";
-      onVideoTrackNotPlayable: "continue" | "error";
+      onAudioTracksNotPlayable: "continue" | "error";
+      onVideoTracksNotPlayable: "continue" | "error";
     },
   ): void {
     if (contentInfos.contentId !== this._priv_contentInfos?.contentId) {
@@ -2592,8 +2592,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const tracksStore = new TracksStore({
       preferTrickModeTracks: this._priv_preferTrickModeTracks,
       defaultAudioTrackSwitchingMode: contentInfos.defaultAudioTrackSwitchingMode,
-      onAudioTrackNotPlayable: options.onAudioTrackNotPlayable,
-      onVideoTrackNotPlayable: options.onVideoTrackNotPlayable,
+      onAudioTracksNotPlayable: options.onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable: options.onVideoTracksNotPlayable,
     });
     contentInfos.tracksStore = tracksStore;
     tracksStore.addEventListener("newAvailablePeriods", (p) => {
