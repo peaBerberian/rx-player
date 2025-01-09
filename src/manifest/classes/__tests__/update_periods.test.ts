@@ -44,7 +44,7 @@ class FakePeriod implements IPeriodMetadata {
     this.duration = end === undefined ? undefined : end - (start ?? 0);
     this.streamEvents = [];
     this.adaptations = {};
-    this.onAudioTracksNotPlayable = "continue";
+    this.onAudioTracksNotPlayable = "error";
     this.onVideoTracksNotPlayable = "error";
   }
   createAdaptationsObject() {

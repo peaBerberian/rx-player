@@ -400,24 +400,22 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     periodObj[bufferType].dispatcher = dispatcher;
 
     dispatcher.addEventListener("noPlayableRepresentation", () => {
-      const nextAdaptation = findNextPlayableAdaptation(period, bufferType);
+      const firstPlayableAdaptation = findFirstPlayableAdaptation(period, bufferType);
       if (
-        nextAdaptation === undefined &&
+        firstPlayableAdaptation === undefined &&
         bufferType === "audio" &&
-        this.onAudioTracksNotPlayable === "continue" &&
-        findNextPlayableAdaptation(period, "video")
+        this.onAudioTracksNotPlayable === "continue"
       ) {
-        // Audio is not playable but video is playable, let's continue the playback.
-        log.warn(`TS: No playable audio, continuing with video only`);
+        // Audio is not playable but video may be playable, let's continue the playback.
+        log.warn(`TS: No playable audio, continuing without audio`);
       } else if (
-        nextAdaptation === undefined &&
+        firstPlayableAdaptation === undefined &&
         bufferType === "video" &&
-        this.onVideoTracksNotPlayable === "continue" &&
-        findNextPlayableAdaptation(period, "audio")
+        this.onVideoTracksNotPlayable === "continue"
       ) {
-        // Video is not playable but audio is playable, let's continue the playback.
+        // Video is not playable but audio may be playable, let's continue the playback.
         log.warn(`TS: No playable video, continuing with audio only`);
-      } else if (nextAdaptation === undefined) {
+      } else if (firstPlayableAdaptation === undefined) {
         const noRepErr = new MediaError(
           "NO_PLAYABLE_REPRESENTATION",
           `No ${bufferType} Representation can be played`,
@@ -433,15 +431,16 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
       }
       const switchingMode =
         bufferType === "audio" ? this._defaultAudioTrackSwitchingMode : "reload";
-      const storedSettings = nextAdaptation
-        ? {
-            adaptation: nextAdaptation,
-            switchingMode,
-            lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
-              null,
-            ),
-          }
-        : null;
+      const storedSettings =
+        firstPlayableAdaptation !== undefined
+          ? {
+              adaptation: firstPlayableAdaptation,
+              switchingMode,
+              lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
+                null,
+              ),
+            }
+          : null;
       typeInfo.storedSettings = storedSettings;
       this.trigger("trackUpdate", {
         period: toExposedPeriod(period),
@@ -1485,23 +1484,26 @@ function toExposedPeriod(p: IPeriodMetadata): IPeriod {
   return { start: p.start, end: p.end, id: p.id };
 }
 
-function findNextPlayableAdaptation(
+function findFirstPlayableAdaptation(
   period: IPeriodMetadata,
   type: "audio" | "text" | "video",
 ): IAdaptationMetadata | undefined {
-  const nextAdaptation = arrayFind(period.adaptations[type] ?? [], (adaptation) => {
-    if (
-      adaptation.supportStatus.hasSupportedCodec === false ||
-      adaptation.supportStatus.isDecipherable === false
-    ) {
-      return false;
-    }
-    const playableRepresentations = adaptation.representations.filter(
-      (r) => isRepresentationPlayable(r) === true,
-    );
-    return playableRepresentations.length > 0;
-  });
-  return nextAdaptation;
+  const firstPlayableAdaptation = arrayFind(
+    period.adaptations[type] ?? [],
+    (adaptation) => {
+      if (
+        adaptation.supportStatus.hasSupportedCodec === false ||
+        adaptation.supportStatus.isDecipherable === false
+      ) {
+        return false;
+      }
+      const playableRepresentations = adaptation.representations.filter(
+        (r) => isRepresentationPlayable(r) === true,
+      );
+      return playableRepresentations.length > 0;
+    },
+  );
+  return firstPlayableAdaptation;
 }
 
 /** Every information stored for a single Period. */

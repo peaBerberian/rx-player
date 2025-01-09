@@ -5,8 +5,8 @@ import CodecSupportCache from "../codec_support_cache";
 import type IPeriod from "../period";
 
 const defaultPeriodOptions = {
-  onAudioTracksNotPlayable: "continue" as const,
-  onVideoTracksNotPlayable: "continue" as const,
+  onAudioTracksNotPlayable: "error" as const,
+  onVideoTracksNotPlayable: "error" as const,
 };
 
 describe("Manifest - Period", () => {

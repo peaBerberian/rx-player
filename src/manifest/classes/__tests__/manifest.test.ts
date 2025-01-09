@@ -12,8 +12,8 @@ import type IManifest from "../manifest";
 import type IPeriod from "../period";
 
 const defaultManifestOptions = {
-  onAudioTracksNotPlayable: "continue" as const,
-  onVideoTracksNotPlayable: "continue" as const,
+  onAudioTracksNotPlayable: "error" as const,
+  onVideoTracksNotPlayable: "error" as const,
 };
 
 function generateParsedPeriod(
