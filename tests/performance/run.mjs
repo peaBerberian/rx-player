@@ -130,18 +130,34 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       branchNameIndex = args.indexOf("--branch");
     }
     if (branchNameIndex >= 0) {
-      const wantedbranchName = args[branchNameIndex + 1];
-      if (wantedbranchName === undefined) {
+      branchName = args[branchNameIndex + 1];
+      if (branchName === undefined) {
         // eslint-disable-next-line no-console
         console.error("ERROR: no branch name provided\n");
         displayHelp();
         process.exit(1);
       }
-      branchName = path.normalize(wantedbranchName);
     }
   }
 
-  startPerformanceTests({ branchName }).catch((err) => {
+  let remote;
+  {
+    let branchNameIndex = args.indexOf("-u");
+    if (branchNameIndex < 0) {
+      branchNameIndex = args.indexOf("--remote-git-url");
+    }
+    if (branchNameIndex >= 0) {
+      remote = args[branchNameIndex + 1];
+      if (remote === undefined) {
+        // eslint-disable-next-line no-console
+        console.error("ERROR: no remote URL provided\n");
+        displayHelp();
+        process.exit(1);
+      }
+    }
+  }
+
+  startPerformanceTests({ branchName, remote }).catch((err) => {
     // eslint-disable-next-line no-console
     console.error("Error:", err);
     return process.exit(1);
@@ -151,11 +167,18 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 /**
  * Initialize and start all tests on Chrome.
  * @param {Object} opts - Various options to configure performance tests.
- * @param {string} opts.branchName - The name of the branch results should be
+ * @param {string} [opts.branchName] - The name of the branch results should be
  * compared to.
+ * `dev` by default.
+ * @param {string} [opts.remoteGitUrl] - The git URL where the current
+ * repository can be cloned for comparisons.
+ * The one for the current git repository by default.
  */
-export default async function startPerformanceTests({ branchName } = {}) {
-  await initScripts(branchName ?? "dev");
+export default async function startPerformanceTests({ branchName, remoteGitUrl } = {}) {
+  await initScripts({
+    branchName: branchName ?? "dev",
+    remoteGitUrl,
+  });
   await initServers();
 
   onFinished = () => {
@@ -215,13 +238,17 @@ async function initServers() {
 
 /**
  * Prepare all scripts needed for the performance tests.
- * @param {string} branchName - The name of the branch results should be
+ * @param {Object} opts - Various options for scripts initialization.
+ * @param {string} opts.branchName - The name of the branch results should be
  * compared to.
+ * @param {string} [opts.remoteGitUrl] - The git URL where the current
+ * repository can be cloned for comparisons.
+ * The one for the current git repository by default.
  * @returns {Promise} - Resolves when the initialization is finished.
  */
-async function initScripts(branchName) {
+async function initScripts({ branchName, remoteGitUrl }) {
   await prepareCurrentRxPlayerTests();
-  await prepareLastRxPlayerTests(branchName);
+  await prepareLastRxPlayerTests({ branchName, remoteGitUrl });
 }
 
 /**
@@ -235,12 +262,16 @@ async function prepareCurrentRxPlayerTests() {
 
 /**
  * Build test file for testing the last version of the RxPlayer.
- * @param {string} branchName - The name of the branch results should be
+ * @param {Object} opts - Various options.
+ * @param {string} opts.branchName - The name of the branch results should be
  * compared to.
+ * @param {string} [opts.remoteGitUrl] - The git URL where the current
+ * repository can be cloned for comparisons.
+ * The one for the current git repository by default.
  * @returns {Promise}
  */
-async function prepareLastRxPlayerTests(branchName) {
-  await linkRxPlayerBranch(branchName);
+async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
+  await linkRxPlayerBranch({ branchName, remoteGitUrl });
   await createBundle({ output: "bundle2.js", minify: false, production: true });
 }
 
@@ -264,19 +295,22 @@ async function linkCurrentRxPlayer() {
 /**
  * Link the last published RxPlayer version to the performance tests, so
  * performance of new code can be compared to it.
- * @param {string} branchName - The name of the branch results should be
+ * @param {Object} opts - Various options.
+ * @param {string} opts.branchName - The name of the branch results should be
  * compared to.
+ * @param {string} [opts.remoteGitUrl] - The git URL where the current
+ * repository can be cloned for comparisons.
+ * The one for the current git repository by default.
  * @returns {Promise}
  */
-async function linkRxPlayerBranch(branchName) {
+async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   await removeDir(path.join(currentDirectory, "node_modules"));
   await fs.mkdir(path.join(currentDirectory, "node_modules"));
   const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
-
-  // TODO: fallback on some URL or allow providing repo url in argument?
-  const url = await execCommandAndGetFirstOutput("git config --get remote.origin.url");
-  console.warn("!!!!!", url);
+  const url =
+    remoteGitUrl ??
+    (await execCommandAndGetFirstOutput("git config --get remote.origin.url"));
   await spawnProc(
     `git clone -b ${branchName} ${url} ${rxPlayerPath}`,
     [],
@@ -939,10 +973,12 @@ function execCommandAndGetFirstOutput(command) {
  */
 function displayHelp() {
   console.log(
-    `Usage: node run_bundler.mjs input-file [options]
+    `Usage: node run.mjs [options]
 Available options:
-  -h, --help                      Display this help message
-  -b <branch>, --branch <branch>  Specify the branch name the performance results should be compared to.
-                                  Defaults to the "dev" branch.`,
+  -h, --help                        Display this help message
+  -b <branch>, --branch <branch>    Specify the branch name the performance results should be compared to.
+                                    Defaults to the "dev" branch.,
+  -u <URL>, --remote-git-url <URL>  Specify the remote git URL where the current repository can be cloned from.
+                                    Defaults to the current remote URL.`,
   );
 }
