@@ -273,7 +273,7 @@ async function linkRxPlayerBranch(branchName) {
   await fs.mkdir(path.join(currentDirectory, "node_modules"));
   const rxPlayerPath = path.join(currentDirectory, "node_modules", "rx-player");
   await spawnProc(
-    `git clone -b ${branchName} git@github.com:canalplus/rx-player.git ${rxPlayerPath}`,
+    `git clone -b ${branchName} https://github.com/canalplus/rx-player.git ${rxPlayerPath}`,
     [],
     (code) => new Error(`npm install exited with code ${code}`),
   ).promise;
