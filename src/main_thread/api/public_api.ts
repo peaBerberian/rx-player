@@ -758,6 +758,10 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     };
   }
 
+  public grrr() {
+    return 4;
+  }
+
   /**
    * From given options, initialize content playback.
    * @param {Object} options

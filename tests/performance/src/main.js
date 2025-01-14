@@ -6,7 +6,7 @@ import sleep from "../../utils/sleep";
 import waitForPlayerState, {
   waitForLoadedStateAfterLoadVideo,
 } from "../../utils/waitForPlayerState";
-import { declareTestGroup, testEnd, testStart } from "./lib";
+import { declareTestGroup, log, testEnd, testStart } from "./lib";
 
 declareTestGroup(
   "content loading monothread",
@@ -19,6 +19,7 @@ declareTestGroup(
       initialAudioBitrate: Infinity,
       videoElement: document.getElementsByTagName("video")[0],
     });
+    log("GRRR", player.grrr());
     player.loadVideo({
       url: multiAdaptationSetsInfos.url,
       transport: multiAdaptationSetsInfos.transport,
