@@ -1709,18 +1709,20 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     const sentInitialObservation = objectAssign(initialObservation, {
       position: initialObservation.position.serialize(),
     });
-    sendMessage(this._settings.worker, {
-      type: MainThreadMessageType.StartPreparedContent,
-      contentId,
-      value: {
-        initialTime,
-        initialObservation: sentInitialObservation,
-        drmSystemId: drmInitStatus.drmSystemId,
-        enableFastSwitching,
-        onCodecSwitch,
-      },
-    });
-
+    // XXX TODO: remove that: it's just to check that performance checks work as expected
+    setTimeout(() => {
+      sendMessage(this._settings.worker, {
+        type: MainThreadMessageType.StartPreparedContent,
+        contentId,
+        value: {
+          initialTime,
+          initialObservation: sentInitialObservation,
+          drmSystemId: drmInitStatus.drmSystemId,
+          enableFastSwitching,
+          onCodecSwitch,
+        },
+      });
+    }, 100);
     corePlaybackObserver.listen(
       (obs) => {
         sendMessage(this._settings.worker, {
