@@ -56,6 +56,7 @@ const CHROME_OPTIONS = [
   "--headless",
   "--disable-gpu",
   "--disable-dev-shm-usage",
+  "--disk-cache-dir=/dev/null",
 
   // We don't even care about that one but Chrome may not launch without this
   // for some unknown reason
