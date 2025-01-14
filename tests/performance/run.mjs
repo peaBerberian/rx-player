@@ -308,6 +308,7 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
+  console.warn("!!!!", currentDirectory, rxPlayerPath);
   await fs.mkdir(rxPlayerPath);
   const url =
     remoteGitUrl ??
@@ -315,7 +316,7 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   await spawnProc(
     `git clone -b ${branchName} ${url} ${rxPlayerPath}`,
     [],
-    (code) => new Error(`npm install exited with code ${code}`),
+    (code) => new Error(`git clone exited with code ${code}`),
   ).promise;
   await spawnProc(
     `cd ${rxPlayerPath} && npm install`,
