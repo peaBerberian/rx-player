@@ -6,7 +6,7 @@ import esbuild from "esbuild";
 import * as fs from "fs/promises";
 import { createServer } from "http";
 import * as path from "path";
-import { fileURLToPath } from "url";
+import { fileURLToPath, pathToFileURL } from "url";
 import launchStaticServer from "../../scripts/launch_static_server.mjs";
 import getHumanReadableHours from "../../scripts/utils/get_human_readable_hours.mjs";
 import removeDir from "../../scripts/utils/remove_dir.mjs";
@@ -115,15 +115,47 @@ const servers = [];
  */
 let onFinished = () => {};
 
-start().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error("Error:", err);
-  return process.exit(1);
-});
+// If true, this script is called directly
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const args = process.argv.slice(2);
+  if (args.includes("-h") || args.includes("--help")) {
+    displayHelp();
+    process.exit(0);
+  }
 
-/** Initialize and start all tests on Chrome. */
-async function start() {
-  await initScripts();
+  let branchName;
+  {
+    let branchNameIndex = args.indexOf("-b");
+    if (branchNameIndex < 0) {
+      branchNameIndex = args.indexOf("--branch");
+    }
+    if (branchNameIndex >= 0) {
+      const wantedbranchName = args[branchNameIndex + 1];
+      if (wantedbranchName === undefined) {
+        // eslint-disable-next-line no-console
+        console.error("ERROR: no branch name provided\n");
+        displayHelp();
+        process.exit(1);
+      }
+      branchName = path.normalize(wantedbranchName);
+    }
+  }
+
+  startPerformanceTests({ branchName }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error("Error:", err);
+    return process.exit(1);
+  });
+}
+
+/**
+ * Initialize and start all tests on Chrome.
+ * @param {Object} opts - Various options to configure performance tests.
+ * @param {string} opts.branchName - The name of the branch results should be
+ * compared to.
+ */
+export default async function startPerformanceTests({ branchName } = {}) {
+  await initScripts(branchName ?? "dev");
   await initServers();
 
   onFinished = () => {
@@ -183,11 +215,13 @@ async function initServers() {
 
 /**
  * Prepare all scripts needed for the performance tests.
+ * @param {string} branchName - The name of the branch results should be
+ * compared to.
  * @returns {Promise} - Resolves when the initialization is finished.
  */
-async function initScripts() {
+async function initScripts(branchName) {
   await prepareCurrentRxPlayerTests();
-  await prepareLastRxPlayerTests();
+  await prepareLastRxPlayerTests(branchName);
 }
 
 /**
@@ -201,10 +235,12 @@ async function prepareCurrentRxPlayerTests() {
 
 /**
  * Build test file for testing the last version of the RxPlayer.
+ * @param {string} branchName - The name of the branch results should be
+ * compared to.
  * @returns {Promise}
  */
-async function prepareLastRxPlayerTests() {
-  await linkLastRxPlayer();
+async function prepareLastRxPlayerTests(branchName) {
+  await linkRxPlayerBranch(branchName);
   await createBundle({ output: "bundle2.js", minify: false, production: true });
 }
 
@@ -216,28 +252,40 @@ async function prepareLastRxPlayerTests() {
 async function linkCurrentRxPlayer() {
   await removeDir(path.join(currentDirectory, "node_modules"));
   await fs.mkdir(path.join(currentDirectory, "node_modules"));
+  const rxPlayerPath = path.join(currentDirectory, "node_modules", "rx-player");
   await spawnProc(
     "npm run build",
     [],
-    (code) => new Error(`npm install exited with code ${code}`),
+    (code) => new Error(`npm run build exited with code ${code}`),
   ).promise;
-  await fs.symlink(
-    path.join(currentDirectory, "..", ".."),
-    path.join(currentDirectory, "node_modules", "rx-player"),
-  );
+  await fs.symlink(path.join(currentDirectory, "..", ".."), rxPlayerPath);
 }
 
 /**
  * Link the last published RxPlayer version to the performance tests, so
  * performance of new code can be compared to it.
+ * @param {string} branchName - The name of the branch results should be
+ * compared to.
  * @returns {Promise}
  */
-async function linkLastRxPlayer() {
+async function linkRxPlayerBranch(branchName) {
   await removeDir(path.join(currentDirectory, "node_modules"));
+  await fs.mkdir(path.join(currentDirectory, "node_modules"));
+  const rxPlayerPath = path.join(currentDirectory, "node_modules", "rx-player");
   await spawnProc(
-    "npm install",
-    ["--prefix", currentDirectory, "rx-player"],
+    `git worktree add -f ${rxPlayerPath} ${branchName}`,
+    [],
     (code) => new Error(`npm install exited with code ${code}`),
+  ).promise;
+  await spawnProc(
+    `cd ${rxPlayerPath} && npm install`,
+    [],
+    (code) => new Error(`npm install failed with code ${code}`),
+  ).promise;
+  await spawnProc(
+    `cd ${rxPlayerPath} && npm run build`,
+    [],
+    (code) => new Error(`npm run build exited with code ${code}`),
   ).promise;
 }
 
@@ -878,4 +926,18 @@ function execCommandAndGetFirstOutput(command) {
       }
     });
   });
+}
+
+/**
+ * Display through `console.log` an helping message relative to how to run this
+ * script.
+ */
+function displayHelp() {
+  console.log(
+    `Usage: node run_bundler.mjs input-file [options]
+Available options:
+  -h, --help                      Display this help message
+  -b <branch>, --branch <branch>  Specify the branch name the performance results should be compared to.
+                                  Defaults to the "dev" branch.`,
+  );
 }
