@@ -309,11 +309,10 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
-  console.warn("!!!!2", currentDirectory, rxPlayerPath);
-  await fs.mkdir(rxPlayerPath);
-  const url =
+  let url =
     remoteGitUrl ??
     (await execCommandAndGetFirstOutput("git config --get remote.origin.url"));
+  url = url.trim();
   await spawnProc(
     `git clone -b ${branchName} ${url} ${rxPlayerPath}`,
     [],
