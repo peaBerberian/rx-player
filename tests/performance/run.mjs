@@ -285,8 +285,6 @@ async function linkCurrentRxPlayer() {
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
-  console.warn("!!!!1", currentDirectory, rxPlayerPath);
-  await fs.mkdir(rxPlayerPath);
   await spawnProc(
     "npm run build",
     [],
