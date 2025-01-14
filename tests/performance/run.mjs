@@ -271,12 +271,13 @@ async function linkCurrentRxPlayer() {
 async function linkRxPlayerBranch(branchName) {
   await removeDir(path.join(currentDirectory, "node_modules"));
   await fs.mkdir(path.join(currentDirectory, "node_modules"));
-  const rxPlayerPath = path.join(currentDirectory, "node_modules", "rx-player");
+  const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
+  const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
 
   // TODO: fallback on some URL or allow providing repo url in argument?
   const url = await execCommandAndGetFirstOutput("git config --get remote.origin.url");
   await spawnProc(
-    `git clone -b ${branchName} ${url} ${rxPlayerPath}`,
+    `git clone -b ${branchName} ${url} ${innerNodeModulesPath}`,
     [],
     (code) => new Error(`npm install exited with code ${code}`),
   ).promise;
