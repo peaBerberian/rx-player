@@ -281,9 +281,12 @@ async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
  * @returns {Promise}
  */
 async function linkCurrentRxPlayer() {
-  await removeDir(path.join(currentDirectory, "node_modules"));
-  await fs.mkdir(path.join(currentDirectory, "node_modules", "rx-player"));
-  const rxPlayerPath = path.join(currentDirectory, "node_modules", "rx-player");
+  const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
+  await removeDir(innerNodeModulesPath);
+  await fs.mkdir(innerNodeModulesPath);
+  const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
+  console.warn("!!!!1", currentDirectory, rxPlayerPath);
+  await fs.mkdir(rxPlayerPath);
   await spawnProc(
     "npm run build",
     [],
@@ -308,7 +311,7 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
-  console.warn("!!!!", currentDirectory, rxPlayerPath);
+  console.warn("!!!!2", currentDirectory, rxPlayerPath);
   await fs.mkdir(rxPlayerPath);
   const url =
     remoteGitUrl ??
