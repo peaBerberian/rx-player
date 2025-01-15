@@ -500,6 +500,7 @@ async function startLastPlayerTestsOnFirefox(testNb, testTotal) {
 async function startPerfhomepageOnChrome(homePage) {
   if (currentBrowser !== undefined) {
     currentBrowser.kill();
+    await sleep(1000);
   }
   if (CHROME_CMD === undefined || CHROME_CMD === null) {
     // eslint-disable-next-line no-console
@@ -987,6 +988,20 @@ function execCommandAndGetFirstOutput(command) {
         res(stdout);
       }
     });
+  });
+}
+/**
+ * Convert a setTimeout to a Promise.
+ *
+ * You can use it to have a much more readable blocking code with async/await
+ * in some asynchronous tests.
+ *
+ * @param {number} timeInMs
+ * @returns {Promise}
+ */
+function sleep(timeInMs) {
+  return new Promise((res) => {
+    setTimeout(res, timeInMs);
   });
 }
 
