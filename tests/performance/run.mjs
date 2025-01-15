@@ -366,8 +366,8 @@ async function startAllTestsOnChrome() {
       tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
       tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
     } else {
-      tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
-      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startLastPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
     }
   }
   if (CHROME_CMD === null) {
@@ -395,8 +395,8 @@ async function _startAllTestsOnFirefox() {
       tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
       tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
     } else {
-      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
-      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
     }
   }
   if (FIREFOX_CMD === null) {
@@ -714,8 +714,9 @@ function compareSamples() {
 
     // eslint-disable-next-line no-console
     console.log(
-      "\n==== For current Player ====\n",
-      `test name: ${testName}\n` +
+      "\n==== For current Player ====\n" +
+        `test name: ${testName}\n` +
+        `--------\n` +
         `mean: ${resultCurrent.mean}\n` +
         `variance: ${resultCurrent.variance}\n` +
         `standardDeviation: ${resultCurrent.standardDeviation}\n` +
@@ -725,8 +726,8 @@ function compareSamples() {
 
     // eslint-disable-next-line no-console
     console.log(
-      "\n==== For previous Player ====\n",
-      `test name: ${testName}\n` +
+      "\n==== For previous Player ====\n" +
+        `test name: ${testName}\n` +
         `mean: ${resultPrevious.mean}\n` +
         `variance: ${resultPrevious.variance}\n` +
         `standardDeviation: ${resultPrevious.standardDeviation}\n` +
@@ -734,10 +735,11 @@ function compareSamples() {
         `moe: ${resultPrevious.moe}\n`,
     );
 
-    const difference = (resultPrevious.mean - resultCurrent.mean) / resultCurrent.mean;
+    const differenceMs = resultPrevious.mean - resultCurrent.mean;
+    const differencePercent = differenceMs / resultCurrent.mean;
 
     // eslint-disable-next-line no-console
-    console.log(`\nDifference: ${difference * 100}`);
+    console.log(`\nDifference: ${differencePercent * 100}% (${differenceMs} ms)`);
 
     const uValue = getUValueFromSamples(sampleCurrent, samplePrevious);
     const zScore = Math.abs(
@@ -747,10 +749,7 @@ function compareSamples() {
     if (isSignificant) {
       // eslint-disable-next-line no-console
       console.log(`The difference is significant (z: ${zScore})`);
-      if (
-        difference < 0 &&
-        resultCurrent.mean - resultPrevious.mean > 2 /* milliseconds */
-      ) {
+      if (differenceMs < 8) {
         hasSucceeded = false;
       }
     } else {
@@ -847,13 +846,14 @@ function getSamplePerScenarios(samplesObj) {
 function displayTemporaryResults() {
   const testedScenarios = getSamplePerScenarios(currentTestSample.samples);
   // eslint-disable-next-line no-console
-  console.log(`\n\n==== Temporary results (${nextTaskIndex}/${tasks.length}) ====\n`);
+  console.log(`\n==== Temporary results (${nextTaskIndex}/${tasks.length}) ====\n`);
   for (const testName of Object.keys(testedScenarios)) {
     const scenarioSample = testedScenarios[testName];
     const results = getResultsForSample(scenarioSample);
     // eslint-disable-next-line no-console
     console.log(
       `\ntest name: ${testName}\n` +
+        `--------\n` +
         `mean: ${results.mean}\n` +
         `first sample: ${scenarioSample[0]}\n` +
         `last sample: ${scenarioSample[scenarioSample.length - 1]}\n` +
