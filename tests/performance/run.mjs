@@ -257,8 +257,11 @@ async function initScripts({ branchName, remoteGitUrl }) {
  * @returns {Promise}
  */
 async function prepareCurrentRxPlayerTests() {
+  const rootDir = path.join(currentDirectory, "..", "..");
+  await removeDir(path.join(rootDir, "dist"));
   await linkCurrentRxPlayer();
   await createBundle({ output: "bundle1.js", minify: false, production: true });
+  await removeDir(path.join(rootDir, "dist"));
 }
 
 /**
@@ -272,8 +275,11 @@ async function prepareCurrentRxPlayerTests() {
  * @returns {Promise}
  */
 async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
+  const rootDir = path.join(currentDirectory, "..", "..");
+  await removeDir(path.join(rootDir, "dist"));
   await linkRxPlayerBranch({ branchName, remoteGitUrl });
   await createBundle({ output: "bundle2.js", minify: false, production: true });
+  await removeDir(path.join(rootDir, "dist"));
 }
 
 /**
@@ -307,8 +313,6 @@ async function linkCurrentRxPlayer() {
  */
 async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
-  const rootDir = path.join(currentDirectory, "..", "..");
-  await removeDir(path.join(rootDir, "dist"));
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
@@ -337,6 +341,13 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
     [],
     (code) => new Error(`npm run build exited with code ${code}`),
   ).promise;
+
+  // GitHub actions, for unknown reasons, want to use the root's `dist` directory
+  // TODO: find why
+  await fs.symlink(
+    path.join(rxPlayerPath, "dist"),
+    path.join(currentDirectory, "..", "..", "dist"),
+  );
 }
 
 /**
