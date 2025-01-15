@@ -818,7 +818,7 @@ function displayTemporaryResults() {
     // eslint-disable-next-line no-console
     console.log(
       `\ntest name: ${testName}\n` +
-        `2mean: ${results.mean}\n` +
+        `mean: ${results.mean}\n` +
         `first sample: ${scenarioSample[0]}\n` +
         `last sample: ${scenarioSample[scenarioSample.length - 1]}\n` +
         `variance: ${results.variance}\n` +
