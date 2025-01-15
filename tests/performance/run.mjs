@@ -837,6 +837,7 @@ function createBundle(options) {
         bundle: true,
         minify,
         outfile: path.join(currentDirectory, options.output),
+        absWorkingDir: currentDirectory,
         define: {
           __TEST_CONTENT_SERVER__: JSON.stringify({
             URL: "127.0.0.1",
