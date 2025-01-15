@@ -329,6 +329,12 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
     [],
     (code) => new Error(`npm run build exited with code ${code}`),
   ).promise;
+  await spawnProc(
+    `cd ${rxPlayerPath} && cat VERSION`,
+
+    [],
+    (code) => new Error(`npm run build exited with code ${code}`),
+  ).promise;
 }
 
 /**
