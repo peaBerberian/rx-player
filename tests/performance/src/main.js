@@ -19,7 +19,6 @@ declareTestGroup(
       initialAudioBitrate: Infinity,
       videoElement: document.getElementsByTagName("video")[0],
     });
-    log("GRRR", player.grrr());
     player.loadVideo({
       url: multiAdaptationSetsInfos.url,
       transport: multiAdaptationSetsInfos.transport,

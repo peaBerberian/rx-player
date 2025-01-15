@@ -248,8 +248,8 @@ async function initServers() {
  * @returns {Promise} - Resolves when the initialization is finished.
  */
 async function initScripts({ branchName, remoteGitUrl }) {
-  await prepareCurrentRxPlayerTests();
   await prepareLastRxPlayerTests({ branchName, remoteGitUrl });
+  await prepareCurrentRxPlayerTests();
 }
 
 /**
@@ -257,11 +257,8 @@ async function initScripts({ branchName, remoteGitUrl }) {
  * @returns {Promise}
  */
 async function prepareCurrentRxPlayerTests() {
-  const rootDir = path.join(currentDirectory, "..", "..");
-  await removeDir(path.join(rootDir, "dist"));
   await linkCurrentRxPlayer();
   await createBundle({ output: "bundle1.js", minify: false, production: true });
-  await removeDir(path.join(rootDir, "dist"));
 }
 
 /**
@@ -275,11 +272,8 @@ async function prepareCurrentRxPlayerTests() {
  * @returns {Promise}
  */
 async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
-  const rootDir = path.join(currentDirectory, "..", "..");
-  await removeDir(path.join(rootDir, "dist"));
   await linkRxPlayerBranch({ branchName, remoteGitUrl });
   await createBundle({ output: "bundle2.js", minify: false, production: true });
-  await removeDir(path.join(rootDir, "dist"));
 }
 
 /**
@@ -288,6 +282,9 @@ async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
  * @returns {Promise}
  */
 async function linkCurrentRxPlayer() {
+  const rootDir = path.join(currentDirectory, "..", "..");
+  await removeDir(path.join(rootDir, "dist"));
+
   const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
@@ -312,6 +309,9 @@ async function linkCurrentRxPlayer() {
  * @returns {Promise}
  */
 async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
+  const rootDir = path.join(currentDirectory, "..", "..");
+  await removeDir(path.join(rootDir, "dist"));
+
   const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
