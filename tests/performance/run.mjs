@@ -393,7 +393,7 @@ async function _startAllTestsOnFirefox() {
  */
 async function shutdown() {
   if (currentBrowser !== undefined) {
-    currentBrowser.kill();
+    currentBrowser.kill("SIGKILL");
     currentBrowser = undefined;
   }
   while (servers.length > 0) {
@@ -495,7 +495,7 @@ async function startLastPlayerTestsOnFirefox(testNb, testTotal) {
  */
 async function startPerfhomepageOnChrome(homePage) {
   if (currentBrowser !== undefined) {
-    currentBrowser.kill();
+    currentBrowser.kill("SIGKILL");
   }
   if (CHROME_CMD === undefined || CHROME_CMD === null) {
     // eslint-disable-next-line no-console
@@ -515,7 +515,7 @@ async function startPerfhomepageOnChrome(homePage) {
  */
 async function startPerfhomepageOnFirefox(homePage) {
   if (currentBrowser !== undefined) {
-    currentBrowser.kill();
+    currentBrowser.kill("SIGKILL");
   }
   if (FIREFOX_CMD === undefined || FIREFOX_CMD === null) {
     // eslint-disable-next-line no-console
@@ -567,7 +567,7 @@ function createResultServer() {
             process.exit(1);
           } else if (parsedBody.type === "done") {
             if (currentBrowser !== undefined) {
-              currentBrowser.kill();
+              currentBrowser.kill("SIGKILL");
               currentBrowser = undefined;
             }
             displayTemporaryResults();
@@ -889,15 +889,13 @@ function createBundle(options) {
 function spawnProc(command, args, errorOnCode) {
   let child;
   const prom = new Promise((res, rej) => {
-    child = spawn(command, args, { shell: true, stdio: "inherit" }).on(
-      "close",
-      (code) => {
-        if (code !== 0 && typeof errorOnCode === "function") {
-          rej(errorOnCode(code));
-        }
-        res();
-      },
-    );
+    child = spawn(command, args, { shell: true, stdio: "inherit" });
+    child.on("close", (code) => {
+      if (code !== 0 && typeof errorOnCode === "function") {
+        rej(errorOnCode(code));
+      }
+      res();
+    });
   });
   return {
     promise: prom,
