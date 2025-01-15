@@ -1,6 +1,41 @@
+/**
+ * "Tests" in performance tests are simple time measurements between a "start"
+ * and an "end" event. `pendingTests` is a map whose keys are the name of the
+ * tests that have been started but not yet ended and whose the values are the
+ * result of `performance.now()` when they where started.
+ */
 const pendingTests = new Map();
+
+/**
+ * Tests are grouped into a collection which make sense together and which may
+ * be associated to a timeout value.
+ * This array list objects, each describing a particular group. See usage.
+ */
 const groups = [];
+
+/**
+ * When `true`, we began tests for the current page, and are thus not able to
+ * register new test groups anymore.
+ */
 let areTestsAlreadyRunning = false;
+
+/**
+ * There are two testing pages, the current one is described by this `page`
+ * property:
+ *   - "previous": This is a page testing the previous build with which we want
+ *     to compare to.
+ *   - "previous": This is a page testing the current build which we want to
+ *     compare.
+ */
+let page;
+if (location.pathname === "/previous.html") {
+  page = "previous";
+} else if (location.pathname === "/current.html") {
+  page = "current";
+} else {
+  error("Unknown launched page: " + location.pathname);
+  throw new Error("The current page should either be `previous.html` or `current.html`");
+}
 
 /**
  * Declare a group of tests in a callback that will be performed together and on
@@ -38,6 +73,7 @@ export function testEnd(name) {
     error("ERROR: `testEnd` called for inexistant test:", name);
     return;
   }
+  pendingTests.delete(name);
   reportResult(name, performance.now() - startTime);
 }
 
@@ -129,6 +165,7 @@ function reportResult(testName, testResult) {
     method: "POST",
     body: JSON.stringify({
       type: "value",
+      page,
       data: { name: testName, value: testResult },
     }),
   }).catch((err) => {
@@ -141,20 +178,22 @@ function reportResult(testName, testResult) {
  * page or indicates to the server that it's finished if it is.
  */
 function done() {
-  const testNumber = getTestNumber();
-  if (testNumber < 100) {
+  let testNumber;
+  if (location.hash === "") {
+    testNumber = 1;
+  } else {
+    testNumber = Number(location.hash.substring(1));
+  }
+  if (testNumber < 50) {
     location.hash = "#" + (testNumber + 1);
-    location.reload();
+    if (page === "previous") {
+      location.pathname = "/current.html";
+    } else {
+      location.pathname = "/previous.html";
+    }
   } else {
     sendDone();
   }
-}
-
-function getTestNumber() {
-  if (location.hash === "") {
-    return 1;
-  }
-  return Number(location.hash.substring(1));
 }
 
 /**

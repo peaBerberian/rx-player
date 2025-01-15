@@ -8,7 +8,6 @@ import { createServer } from "http";
 import * as path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import launchStaticServer from "../../scripts/launch_static_server.mjs";
-import getHumanReadableHours from "../../scripts/utils/get_human_readable_hours.mjs";
 import removeDir from "../../scripts/utils/remove_dir.mjs";
 import createContentServer from "../contents/server.mjs";
 
@@ -25,10 +24,9 @@ const PERF_TESTS_PORT = 8080;
  * More iterations means (much) more time to perform tests, but also produce
  * better estimates.
  *
- * TODO: GitHub actions fails when running the 128th browser (so 64*2). Find
- * out why.
+ * TODO: GitHub actions fails when running the 128th browser. Find out why.
  */
-const TEST_ITERATIONS = 63;
+const TEST_ITERATIONS = 100;
 
 /**
  * After initialization is done, contains the path allowing to run the Chrome
@@ -37,12 +35,12 @@ const TEST_ITERATIONS = 63;
  */
 let CHROME_CMD;
 
-/**
- * After initialization is done, contains the path allowing to run the Firefox
- * browser.
- * @type {string|undefined|null}
- */
-let FIREFOX_CMD;
+// /**
+//  * After initialization is done, contains the path allowing to run the Firefox
+//  * browser.
+//  * @type {string|undefined|null}
+//  */
+// let FIREFOX_CMD;
 
 /** Options used when starting the Chrome browser. */
 const CHROME_OPTIONS = [
@@ -62,13 +60,12 @@ const CHROME_OPTIONS = [
   "--disk-cache-dir=/dev/null",
 ];
 
-/** Options used when starting the Firefox browser. */
-const FIREFOX_OPTIONS = [
-  "-no-remote",
-  "-wait-for-browser",
-  "-headless",
-  // "--start-debugger-server 6000",
-];
+// /** Options used when starting the Firefox browser. */
+// const FIREFOX_OPTIONS = [
+//   "-no-remote",
+//   "-wait-for-browser",
+//   "-headless",
+// ];
 
 /**
  * `ChildProcess` instance of the current browser being run.
@@ -101,25 +98,10 @@ const allSamples = {
 };
 
 /**
- * Current results for the tests being run in `currentBrowser`.
- * Will be added to `allSamples` once those tests are finished.
- */
-let currentTestSample = {
-  type: "current" /* "current" or "previous" */,
-  samples: [],
-};
-
-/**
  * Contains references to every launched servers, with a `close` method allowing
  * to close each one of them.
  */
 const servers = [];
-
-/**
- * Callback called when all current tasks are finished.
- * This allows to perform several groups of tasks (e.g. per browser).
- */
-let onFinished = () => {};
 
 // If true, this script is called directly
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -163,11 +145,20 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   }
 
-  startPerformanceTests({ branchName, remote }).catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Error:", err);
-    return process.exit(1);
-  });
+  startPerformanceTests({ branchName, remote }).then(
+    (results) => {
+      if (results.failures.length > 0) {
+        // eslint-disable-next-line no-console
+        console.error("Tests failed for:", results.failures.join(" "));
+        process.exit(1);
+      }
+    },
+    (err) => {
+      // eslint-disable-next-line no-console
+      console.error("Error:", err);
+      return process.exit(1);
+    },
+  );
 }
 
 /**
@@ -179,61 +170,47 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
  * @param {string} [opts.remoteGitUrl] - The git URL where the current
  * repository can be cloned for comparisons.
  * The one for the current git repository by default.
+ * @returns {Promise.<Object>}
  */
-export default async function startPerformanceTests({ branchName, remoteGitUrl } = {}) {
-  await initScripts({
-    branchName: branchName ?? "dev",
-    remoteGitUrl,
-  });
-  await initServers();
-
-  onFinished = () => {
-    const hasSucceededOnChrome = compareSamples();
-    shutdown().catch((err) => {
-      // eslint-disable-next-line no-console
-      console.error("Failed to shutdown:", err);
-    });
-    if (!hasSucceededOnChrome) {
-      // eslint-disable-next-line no-console
-      console.error("Tests failed on Chrome");
-      return process.exit(1);
-    }
-    return process.exit(0);
-
-    // TODO also run on Firefox? Despite my efforts, I did not succeed to run
-    // tests on it.
-    // onFinished = async () => {
-    //   shutdown();
-    //   const hasSucceededOnFirefox = compareSamples();
-    //   if (!hasSucceededOnChrome || !hasSucceededOnFirefox) {
-    //     // eslint-disable-next-line no-console
-    //     console.error("Tests failed on:" +
-    //                   (!hasSucceededOnChrome ? " Chrome" : "") +
-    //                   (!hasSucceededOnFirefox ? " Firefox" : ""));
-    //     return process.exit(1);
-    //   }
-    //   return process.exit(0);
-    // };
-    // startAllTestsOnFirefox();
-  };
-
-  startAllTestsOnChrome().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Error:", err);
-    return process.exit(1);
+function startPerformanceTests({ branchName, remoteGitUrl } = {}) {
+  return new Promise((resolve, reject) => {
+    const onFinished = () => {
+      const results = compareSamples();
+      shutdown().catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("Failed to shutdown:", err);
+      });
+      resolve(results);
+    };
+    const onError = (error) => {
+      shutdown().catch((err) => {
+        // eslint-disable-next-line no-console
+        console.error("Failed to shutdown:", err);
+      });
+      reject(error);
+    };
+    initScripts({
+      branchName: branchName ?? "dev",
+      remoteGitUrl,
+    })
+      .then(() => initServers(onFinished, onError))
+      .then(startAllTestsOnChrome)
+      .catch(onError);
   });
 }
 
 /**
  * Initialize all servers used for the performance tests.
+ * @param {Function} onFinished
+ * @param {function} onError
  * @returns {Promise} - Resolves when all servers are listening.
  */
-async function initServers() {
+async function initServers(onFinished, onError) {
   const contentServer = createContentServer(CONTENT_SERVER_PORT);
   const staticServer = launchStaticServer(currentDirectory, {
     httpPort: PERF_TESTS_PORT,
   });
-  const resultServer = createResultServer();
+  const resultServer = createResultServer(onFinished, onError);
   servers.push(contentServer, staticServer, resultServer);
   await Promise.all([
     contentServer.listeningPromise,
@@ -263,7 +240,7 @@ async function initScripts({ branchName, remoteGitUrl }) {
  */
 async function prepareCurrentRxPlayerTests() {
   await linkCurrentRxPlayer();
-  await createBundle({ output: "bundle1.js", minify: false, production: true });
+  await createBundle({ output: "current.js", minify: false, production: true });
 }
 
 /**
@@ -278,7 +255,7 @@ async function prepareCurrentRxPlayerTests() {
  */
 async function prepareLastRxPlayerTests({ branchName, remoteGitUrl }) {
   await linkRxPlayerBranch({ branchName, remoteGitUrl });
-  await createBundle({ output: "bundle2.js", minify: false, production: true });
+  await createBundle({ output: "previous.js", minify: false, production: true });
 }
 
 /**
@@ -357,54 +334,21 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
 
 /**
  * Build the `tasks` array and start all tests on the Chrome browser.
- * The `onFinished` callback will be called when finished.
+ * @returns {Promise}
  */
 async function startAllTestsOnChrome() {
   CHROME_CMD = await getChromeCmd();
   for (let i = 0; i < TEST_ITERATIONS; i++) {
-    if (i % 2 === 0) {
-      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
-      tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
-    } else {
-      tasks.push(() => startLastPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
-      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
-    }
+    tasks.push(() => startTestsOnChrome(i % 2 === 0, i + 1, TEST_ITERATIONS));
   }
   if (CHROME_CMD === null) {
-    // eslint-disable-next-line no-console
-    console.error("Error: Chrome not found on the current platform");
-    return process.exit(1);
+    throw new Error("Error: Chrome not found on the current platform");
   }
-  startNextTaskOrFinish().catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Error:", err);
-    return process.exit(1);
-  });
-}
-
-/**
- * Build the `tasks` array and start all tests on the Chrome browser.
- * The `onFinished` callback will be called when finished.
- * TODO Find out why Firefox just fails without running tests.
- */
-// eslint-disable-next-line no-unused-vars
-async function _startAllTestsOnFirefox() {
-  FIREFOX_CMD = await getFirefoxCmd();
-  for (let i = 0; i < TEST_ITERATIONS; i++) {
-    if (i % 2 === 0) {
-      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
-      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
-    } else {
-      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
-      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
-    }
+  if (tasks.length === 0) {
+    throw new Error("No task scheduled");
   }
-  if (FIREFOX_CMD === null) {
-    // eslint-disable-next-line no-console
-    console.error("Error: Firefox not found on the current platform");
-    return process.exit(1);
-  }
-  startNextTaskOrFinish();
+  nextTaskIndex++;
+  return tasks[nextTaskIndex - 1]();
 }
 
 /**
@@ -423,15 +367,9 @@ async function shutdown() {
 /**
  * Starts the next function in the `tasks` array.
  * If no task are available anymore, call the `onFinished` callback.
+ * @param {Function} onFinished
  */
-function startNextTaskOrFinish() {
-  if (nextTaskIndex > 0) {
-    if (currentTestSample.type === "current") {
-      allSamples.current.push(...currentTestSample.samples);
-    } else {
-      allSamples.previous.push(...currentTestSample.samples);
-    }
-  }
+function startNextTaskOrFinish(onFinished) {
   if (tasks[nextTaskIndex] === undefined) {
     onFinished();
   }
@@ -440,105 +378,39 @@ function startNextTaskOrFinish() {
 }
 
 /**
- * Start Chrome browser running performance tests on the current RxPlayer
- * version.
+ * Start Chrome browser running performance tests.
+ * @param {boolean} startWithCurrent - If `true` we will begin with tests on the
+ * current build. If `false` we will start with the previous build. We will
+ * then alternate.
+ * The global idea is to ensure we're testing both cases as to remove some
+ * potential for lower performances due e.g. to browser internal logic.
+ * @param {number} testNb - The current test iteration, starting from `1` to
+ * `testTotal`. Used to indicate progress.
+ * @param {number} testTotal - The maximum number of iterations. Used to
+ * indicate progress.
  * @returns {Promise}
  */
-async function startCurrentPlayerTestsOnChrome(testNb, testTotal) {
+async function startTestsOnChrome(startWithCurrent, testNb, testTotal) {
   // eslint-disable-next-line no-console
-  console.log(
-    "Running tests on Chrome on the current RxPlayer version " +
-      `(${testNb}/${testTotal})`,
-  );
-  currentTestSample = {
-    type: "current",
-    samples: [],
-  };
-  startPerfhomepageOnChrome("index1.html").catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Could not launch page on Chrome:", err);
-    process.exit(1);
-  });
-}
-
-/**
- * Start Firefox browser running performance tests on the current RxPlayer
- * version.
- * @returns {Promise}
- */
-async function startCurrentPlayerTestsOnFirefox(testNb, testTotal) {
-  // eslint-disable-next-line no-console
-  console.log(
-    "Running tests on Firefox on the current RxPlayer version " +
-      `(${testNb}/${testTotal})`,
-  );
-  currentTestSample = {
-    type: "current",
-    samples: [],
-  };
-  startPerfhomepageOnFirefox("index1.html").catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Could not launch page on Firefox:", err);
-    process.exit(1);
-  });
-}
-
-/**
- * Start Chrome browser running performance tests on the last published RxPlayer
- * version.
- * @returns {Promise}
- */
-async function startLastPlayerTestsOnChrome(testNb, testTotal) {
-  // eslint-disable-next-line no-console
-  console.log(
-    "Running tests on Chrome on the previous RxPlayer version " +
-      `(${testNb}/${testTotal})`,
-  );
-  currentTestSample = {
-    type: "previous",
-    samples: [],
-  };
-  startPerfhomepageOnChrome("index2.html").catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Could not launch page on Chrome:", err);
-    process.exit(1);
-  });
-}
-
-/**
- * Start Firefox browser running performance tests on the last published
- * RxPlayer version.
- * @returns {Promise}
- */
-async function startLastPlayerTestsOnFirefox(testNb, testTotal) {
-  // eslint-disable-next-line no-console
-  console.log(
-    "Running tests on Firefox on the previous RxPlayer version " +
-      `(${testNb}/${testTotal})`,
-  );
-  currentTestSample = {
-    type: "previous",
-    samples: [],
-  };
-  startPerfhomepageOnFirefox("index2.html").catch((err) => {
-    // eslint-disable-next-line no-console
-    console.error("Could not launch page on Firefox:", err);
-    process.exit(1);
+  console.log(`Running tests on Chrome (${testNb}/${testTotal})`);
+  return startPerfhomepageOnChrome(
+    startWithCurrent ? "current.html" : "previous.html",
+  ).catch((err) => {
+    throw new Error("Could not launch page on Chrome: " + err.toString());
   });
 }
 
 /**
  * Start the performance tests on Chrome.
  * Set `currentBrowser` to chrome.
+ * @param {string} homePage - Page on which to run the browser.
  */
 async function startPerfhomepageOnChrome(homePage) {
   if (currentBrowser !== undefined) {
     currentBrowser.kill("SIGKILL");
   }
   if (CHROME_CMD === undefined || CHROME_CMD === null) {
-    // eslint-disable-next-line no-console
-    console.error("Error: Starting browser before initialization");
-    return process.exit(1);
+    throw new Error("Starting browser before initialization");
   }
   const spawned = spawnProc(CHROME_CMD, [
     ...CHROME_OPTIONS,
@@ -548,30 +420,12 @@ async function startPerfhomepageOnChrome(homePage) {
 }
 
 /**
- * Start the performance tests on Firefox.
- * Set `currentBrowser` to Firefox.
- */
-async function startPerfhomepageOnFirefox(homePage) {
-  if (currentBrowser !== undefined) {
-    currentBrowser.kill("SIGKILL");
-  }
-  if (FIREFOX_CMD === undefined || FIREFOX_CMD === null) {
-    // eslint-disable-next-line no-console
-    console.error("Error: Starting browser before initialization");
-    return process.exit(1);
-  }
-  const spawned = spawnProc(FIREFOX_CMD, [
-    ...FIREFOX_OPTIONS,
-    `http://localhost:${PERF_TESTS_PORT}/${homePage}`,
-  ]);
-  currentBrowser = spawned.child;
-}
-
-/**
  * Create HTTP server which will receive test results and react appropriately.
+ * @param {Function} onFinished
+ * @param {function} onError
  * @returns {Object}
  */
-function createResultServer() {
+function createResultServer(onFinished, onError) {
   const server = createServer(onRequest);
   return {
     listeningPromise: new Promise((res) => {
@@ -600,18 +454,28 @@ function createResultServer() {
             // eslint-disable-next-line no-console
             console.warn("LOG:", parsedBody.data);
           } else if (parsedBody.type === "error") {
-            // eslint-disable-next-line no-console
-            console.error("ERROR: A fatal error happened:", parsedBody.data);
-            process.exit(1);
+            onError(new Error("ERROR: A fatal error happened: " + parsedBody.data));
+            return;
           } else if (parsedBody.type === "done") {
             if (currentBrowser !== undefined) {
               currentBrowser.kill("SIGKILL");
               currentBrowser = undefined;
             }
-            displayTemporaryResults();
-            startNextTaskOrFinish();
-          } else {
-            currentTestSample.samples.push(parsedBody.data);
+            if (allSamples.previous.length > 0 && allSamples.current.length > 0) {
+              compareSamples();
+            }
+            startNextTaskOrFinish(onFinished).catch(onError);
+          } else if (parsedBody.type === "value") {
+            let page;
+            if (parsedBody.page === "current") {
+              page = "current";
+            } else if (parsedBody.page === "previous") {
+              page = "previous";
+            } else {
+              onError(new Error("Unknown page: " + parsedBody.page));
+              return;
+            }
+            allSamples[page].push(parsedBody.data);
           }
           answerWithCORS(response, 200, "OK");
           return;
@@ -692,7 +556,7 @@ function rankSamples(list) {
  * Compare both elements of `allSamples` and display comparative results.
  * Returns false if any of the tested scenario had a significant performance
  * regression.
- * @returns {boolean}
+ * @returns {Object}
  */
 function compareSamples() {
   const samplesPerScenario = {
@@ -700,7 +564,10 @@ function compareSamples() {
     previous: getSamplePerScenarios(allSamples.previous),
   };
 
-  let hasSucceeded = true;
+  const results = {
+    failures: [],
+    success: [],
+  };
   for (const testName of Object.keys(samplesPerScenario.current)) {
     const sampleCurrent = samplesPerScenario.current[testName];
     const samplePrevious = samplesPerScenario.previous[testName];
@@ -712,52 +579,50 @@ function compareSamples() {
     const resultCurrent = getResultsForSample(sampleCurrent);
     const resultPrevious = getResultsForSample(samplePrevious);
 
-    // eslint-disable-next-line no-console
-    console.log(
-      "\n==== For current Player ====\n" +
-        `test name: ${testName}\n` +
-        `--------\n` +
-        `mean: ${resultCurrent.mean}\n` +
-        `variance: ${resultCurrent.variance}\n` +
-        `standardDeviation: ${resultCurrent.standardDeviation}\n` +
-        `standardErrorOfMean: ${resultCurrent.standardErrorOfMean}\n` +
-        `moe: ${resultCurrent.moe}\n`,
-    );
-
-    // eslint-disable-next-line no-console
-    console.log(
-      "\n==== For previous Player ====\n" +
-        `test name: ${testName}\n` +
-        `mean: ${resultPrevious.mean}\n` +
-        `variance: ${resultPrevious.variance}\n` +
-        `standardDeviation: ${resultPrevious.standardDeviation}\n` +
-        `standardErrorOfMean: ${resultPrevious.standardErrorOfMean}\n` +
-        `moe: ${resultPrevious.moe}\n`,
-    );
-
     const differenceMs = resultPrevious.mean - resultCurrent.mean;
-    const differencePercent = differenceMs / resultCurrent.mean;
-
-    // eslint-disable-next-line no-console
-    console.log(`\nDifference: ${differencePercent * 100}% (${differenceMs} ms)`);
-
+    const differencePc = differenceMs / resultCurrent.mean;
     const uValue = getUValueFromSamples(sampleCurrent, samplePrevious);
     const zScore = Math.abs(
       calculateZScore(uValue, sampleCurrent.length, samplePrevious.length),
     );
     const isSignificant = zScore > 1.96;
+
+    /* eslint-disable no-console */
+    console.log("");
+    console.log(`> Current results for test:`, testName);
+    console.log("");
+    console.log("    For current Player:");
+    console.log(`      mean: ${resultCurrent.mean}`);
+    console.log(`      variance: ${resultCurrent.variance}`);
+    console.log(`      standard deviation: ${resultCurrent.standardDeviation}`);
+    console.log(`      standard error of mean: ${resultCurrent.standardErrorOfMean}`);
+    console.log(`      moe: ${resultCurrent.moe}`);
+    console.log("");
+    console.log("    For previous Player:");
+    console.log(`      mean: ${resultPrevious.mean}`);
+    console.log(`      variance: ${resultPrevious.variance}`);
+    console.log(`      standard deviation: ${resultPrevious.standardDeviation}`);
+    console.log(`      standard error of mean: ${resultPrevious.standardErrorOfMean}`);
+    console.log(`      moe: ${resultPrevious.moe}`);
+    console.log("");
+    console.log("    Results");
+    console.log(`      mean difference % (negative is slower): ${differencePc * 100}%`);
+    console.log(`      mean difference time (negative is slower): ${differenceMs} ms`);
     if (isSignificant) {
-      // eslint-disable-next-line no-console
-      console.log(`The difference is significant (z: ${zScore})`);
-      if (differenceMs < 8) {
-        hasSucceeded = false;
+      console.log(`      The difference is significant (z: ${zScore})`);
+      if (differenceMs < -2) {
+        results.failures.push(testName);
+      } else {
+        results.success.push(testName);
       }
     } else {
-      // eslint-disable-next-line no-console
-      console.log(`The difference is not significant (z: ${zScore})`);
+      console.log(`      The difference is not significant (z: ${zScore})`);
+      results.success.push(testName);
     }
+    console.log("");
   }
-  return hasSucceeded;
+  /* eslint-enable no-console */
+  return results;
   function calculateZScore(u, len1, len2) {
     return (u - (len1 * len2) / 2) / Math.sqrt((len1 * len2 * (len1 + len2 + 1)) / 12);
   }
@@ -841,31 +706,6 @@ function getSamplePerScenarios(samplesObj) {
 }
 
 /**
- * Log results for `currentTestSample`: mean, standard deviation etc.
- */
-function displayTemporaryResults() {
-  const testedScenarios = getSamplePerScenarios(currentTestSample.samples);
-  // eslint-disable-next-line no-console
-  console.log(`\n==== Temporary results (${nextTaskIndex}/${tasks.length}) ====\n`);
-  for (const testName of Object.keys(testedScenarios)) {
-    const scenarioSample = testedScenarios[testName];
-    const results = getResultsForSample(scenarioSample);
-    // eslint-disable-next-line no-console
-    console.log(
-      `\ntest name: ${testName}\n` +
-        `--------\n` +
-        `mean: ${results.mean}\n` +
-        `first sample: ${scenarioSample[0]}\n` +
-        `last sample: ${scenarioSample[scenarioSample.length - 1]}\n` +
-        `variance: ${results.variance}\n` +
-        `standard deviation: ${results.standardDeviation}\n` +
-        `standard error of mean: ${results.standardErrorOfMean}\n` +
-        `moe: ${results.moe}\n`,
-    );
-  }
-}
-
-/**
  * Build the performance tests.
  * @param {Object} options
  * @param {Object} options.output - The output file
@@ -877,47 +717,32 @@ function displayTemporaryResults() {
 function createBundle(options) {
   const minify = !!options.minify;
   const isDevMode = !options.production;
-  return new Promise((res) => {
-    esbuild
-      .build({
-        entryPoints: [path.join(currentDirectory, "src", "main.js")],
-        bundle: true,
-        minify,
-        outfile: path.join(currentDirectory, options.output),
-        absWorkingDir: currentDirectory,
-        define: {
-          __TEST_CONTENT_SERVER__: JSON.stringify({
-            URL: "127.0.0.1",
-            PORT: "3000",
-          }),
-          "process.env.NODE_ENV": JSON.stringify(
-            isDevMode ? "development" : "production",
-          ),
-          __ENVIRONMENT__: JSON.stringify({
-            PRODUCTION: 0,
-            DEV: 1,
-            CURRENT_ENV: isDevMode ? 1 : 0,
-          }),
-          __LOGGER_LEVEL__: JSON.stringify({
-            CURRENT_LEVEL: "INFO",
-          }),
-          __GLOBAL_SCOPE__: JSON.stringify(false),
-        },
-      })
-      .then(
-        () => {
-          res();
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.error(
-            `\x1b[31m[${getHumanReadableHours()}]\x1b[0m Demo build failed:`,
-            err,
-          );
-          process.exit(1);
-        },
-      );
-  });
+  return esbuild
+    .build({
+      entryPoints: [path.join(currentDirectory, "src", "main.js")],
+      bundle: true,
+      minify,
+      outfile: path.join(currentDirectory, options.output),
+      define: {
+        __TEST_CONTENT_SERVER__: JSON.stringify({
+          URL: "127.0.0.1",
+          PORT: "3000",
+        }),
+        "process.env.NODE_ENV": JSON.stringify(isDevMode ? "development" : "production"),
+        __ENVIRONMENT__: JSON.stringify({
+          PRODUCTION: 0,
+          DEV: 1,
+          CURRENT_ENV: isDevMode ? 1 : 0,
+        }),
+        __LOGGER_LEVEL__: JSON.stringify({
+          CURRENT_LEVEL: "INFO",
+        }),
+        __GLOBAL_SCOPE__: JSON.stringify(false),
+      },
+    })
+    .catch((err) => {
+      throw new Error(`Demo build failed:`, err);
+    });
 }
 
 /**
@@ -989,28 +814,24 @@ async function getChromeCmd() {
       return null;
     }
     default:
-      // eslint-disable-next-line no-console
-      console.error("Error: unsupported platform:", process.platform);
-      process.exit(1);
+      throw new Error("Error: unsupported platform:", process.platform);
   }
 }
-
-/**
- * Returns string corresponding to the Chrome binary.
- * @returns {Promise.<string>}
- */
-async function getFirefoxCmd() {
-  switch (process.platform) {
-    case "linux": {
-      return "firefox";
-    }
-    // TODO other platforms
-    default:
-      // eslint-disable-next-line no-console
-      console.error("Error: unsupported platform:", process.platform);
-      process.exit(1);
-  }
-}
+//
+// /**
+//  * Returns string corresponding to the Chrome binary.
+//  * @returns {Promise.<string>}
+//  */
+// async function getFirefoxCmd() {
+//   switch (process.platform) {
+//     case "linux": {
+//       return "firefox";
+//     }
+//     // TODO other platforms
+//     default:
+//       throw new Error("Error: unsupported platform:", process.platform);
+//   }
+// }
 
 function execCommandAndGetFirstOutput(command) {
   return new Promise((res, rej) => {
@@ -1029,6 +850,7 @@ function execCommandAndGetFirstOutput(command) {
  * script.
  */
 function displayHelp() {
+  /* eslint-disable-next-line no-console */
   console.log(
     `Usage: node run.mjs [options]
 Available options:
