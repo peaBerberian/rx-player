@@ -6,7 +6,7 @@ import sleep from "../../utils/sleep";
 import waitForPlayerState, {
   waitForLoadedStateAfterLoadVideo,
 } from "../../utils/waitForPlayerState";
-import { declareTestGroup, log, testEnd, testStart } from "./lib";
+import { declareTestGroup, testEnd, testStart } from "./lib";
 
 declareTestGroup(
   "content loading monothread",
@@ -54,7 +54,7 @@ declareTestGroup(
     player.dispose();
     await sleep(10); // ensure dispose is done
   },
-  10000,
+  20000,
 );
 
 declareTestGroup(
@@ -122,5 +122,5 @@ declareTestGroup(
     player.dispose();
     await sleep(10); // ensure dispose is done
   },
-  10000,
+  20000,
 );
