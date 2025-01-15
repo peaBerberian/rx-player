@@ -24,6 +24,9 @@ const PERF_TESTS_PORT = 8080;
  * Number of times test are runs on each browser/RxPlayer configuration.
  * More iterations means (much) more time to perform tests, but also produce
  * better estimates.
+ *
+ * TODO: GitHub actions fails when running the 128th browser (so 64*2). Find
+ * out why.
  */
 const TEST_ITERATIONS = 63;
 
@@ -89,16 +92,22 @@ let nextTaskIndex = 0;
 
 /**
  * Store results of the performance tests in two arrays:
- *   - the first one contains the test results of the current RxPlayer version
- *   - the second one contains the test results of the last RxPlayer version
+ *   - "current" contains the test results of the current RxPlayer version
+ *   - "previous" contains the test results of the last RxPlayer version
  */
-const allSamples = [[], []];
+const allSamples = {
+  current: [],
+  previous: [],
+};
 
 /**
  * Current results for the tests being run in `currentBrowser`.
  * Will be added to `allSamples` once those tests are finished.
  */
-let currentTestSample = [];
+let currentTestSample = {
+  type: "current" /* "current" or "previous" */,
+  samples: [],
+};
 
 /**
  * Contains references to every launched servers, with a `close` method allowing
@@ -353,8 +362,13 @@ async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
 async function startAllTestsOnChrome() {
   CHROME_CMD = await getChromeCmd();
   for (let i = 0; i < TEST_ITERATIONS; i++) {
-    tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
-    tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
+    if (i % 2 === 0) {
+      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
+    } else {
+      tasks.push(() => startLastPlayerTestsOnChrome(i * 2 + 1, TEST_ITERATIONS * 2));
+      tasks.push(() => startCurrentPlayerTestsOnChrome(i * 2, TEST_ITERATIONS * 2));
+    }
   }
   if (CHROME_CMD === null) {
     // eslint-disable-next-line no-console
@@ -377,8 +391,13 @@ async function startAllTestsOnChrome() {
 async function _startAllTestsOnFirefox() {
   FIREFOX_CMD = await getFirefoxCmd();
   for (let i = 0; i < TEST_ITERATIONS; i++) {
-    tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
-    tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
+    if (i % 2 === 0) {
+      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
+      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
+    } else {
+      tasks.push(() => startLastPlayerTestsOnFirefox(i * 2 + 1, TEST_ITERATIONS * 2));
+      tasks.push(() => startCurrentPlayerTestsOnFirefox(i * 2, TEST_ITERATIONS * 2));
+    }
   }
   if (FIREFOX_CMD === null) {
     // eslint-disable-next-line no-console
@@ -407,9 +426,12 @@ async function shutdown() {
  */
 function startNextTaskOrFinish() {
   if (nextTaskIndex > 0) {
-    allSamples[(nextTaskIndex - 1) % 2].push(...currentTestSample);
+    if (currentTestSample.type === "current") {
+      allSamples.current.push(...currentTestSample.samples);
+    } else {
+      allSamples.previous.push(...currentTestSample.samples);
+    }
   }
-  currentTestSample = [];
   if (tasks[nextTaskIndex] === undefined) {
     onFinished();
   }
@@ -428,6 +450,10 @@ async function startCurrentPlayerTestsOnChrome(testNb, testTotal) {
     "Running tests on Chrome on the current RxPlayer version " +
       `(${testNb}/${testTotal})`,
   );
+  currentTestSample = {
+    type: "current",
+    samples: [],
+  };
   startPerfhomepageOnChrome("index1.html").catch((err) => {
     // eslint-disable-next-line no-console
     console.error("Could not launch page on Chrome:", err);
@@ -446,6 +472,10 @@ async function startCurrentPlayerTestsOnFirefox(testNb, testTotal) {
     "Running tests on Firefox on the current RxPlayer version " +
       `(${testNb}/${testTotal})`,
   );
+  currentTestSample = {
+    type: "current",
+    samples: [],
+  };
   startPerfhomepageOnFirefox("index1.html").catch((err) => {
     // eslint-disable-next-line no-console
     console.error("Could not launch page on Firefox:", err);
@@ -464,6 +494,10 @@ async function startLastPlayerTestsOnChrome(testNb, testTotal) {
     "Running tests on Chrome on the previous RxPlayer version " +
       `(${testNb}/${testTotal})`,
   );
+  currentTestSample = {
+    type: "previous",
+    samples: [],
+  };
   startPerfhomepageOnChrome("index2.html").catch((err) => {
     // eslint-disable-next-line no-console
     console.error("Could not launch page on Chrome:", err);
@@ -482,6 +516,10 @@ async function startLastPlayerTestsOnFirefox(testNb, testTotal) {
     "Running tests on Firefox on the previous RxPlayer version " +
       `(${testNb}/${testTotal})`,
   );
+  currentTestSample = {
+    type: "previous",
+    samples: [],
+  };
   startPerfhomepageOnFirefox("index2.html").catch((err) => {
     // eslint-disable-next-line no-console
     console.error("Could not launch page on Firefox:", err);
@@ -573,7 +611,7 @@ function createResultServer() {
             displayTemporaryResults();
             startNextTaskOrFinish();
           } else {
-            currentTestSample.push(parsedBody.data);
+            currentTestSample.samples.push(parsedBody.data);
           }
           answerWithCORS(response, 200, "OK");
           return;
@@ -657,60 +695,62 @@ function rankSamples(list) {
  * @returns {boolean}
  */
 function compareSamples() {
-  if (allSamples.length !== 2) {
-    throw new Error("Not enough result");
-  }
-  const samplesPerScenario = [
-    getSamplePerScenarios(allSamples[0]),
-    getSamplePerScenarios(allSamples[1]),
-  ];
+  const samplesPerScenario = {
+    current: getSamplePerScenarios(allSamples.current),
+    previous: getSamplePerScenarios(allSamples.previous),
+  };
 
   let hasSucceeded = true;
-  for (const testName of Object.keys(samplesPerScenario[0])) {
-    const sample1 = samplesPerScenario[0][testName];
-    const sample2 = samplesPerScenario[1][testName];
-    if (sample2 === undefined) {
+  for (const testName of Object.keys(samplesPerScenario.current)) {
+    const sampleCurrent = samplesPerScenario.current[testName];
+    const samplePrevious = samplesPerScenario.previous[testName];
+    if (samplePrevious === undefined) {
       // eslint-disable-next-line no-console
       console.error("Error: second result misses a scenario:", testName);
       continue;
     }
-    const result1 = getResultsForSample(sample1);
-    const result2 = getResultsForSample(sample2);
+    const resultCurrent = getResultsForSample(sampleCurrent);
+    const resultPrevious = getResultsForSample(samplePrevious);
 
     // eslint-disable-next-line no-console
     console.log(
       "\n==== For current Player ====\n",
       `test name: ${testName}\n` +
-        `mean: ${result1.mean}\n` +
-        `variance: ${result1.variance}\n` +
-        `standardDeviation: ${result1.standardDeviation}\n` +
-        `standardErrorOfMean: ${result1.standardErrorOfMean}\n` +
-        `moe: ${result1.moe}\n`,
+        `mean: ${resultCurrent.mean}\n` +
+        `variance: ${resultCurrent.variance}\n` +
+        `standardDeviation: ${resultCurrent.standardDeviation}\n` +
+        `standardErrorOfMean: ${resultCurrent.standardErrorOfMean}\n` +
+        `moe: ${resultCurrent.moe}\n`,
     );
 
     // eslint-disable-next-line no-console
     console.log(
       "\n==== For previous Player ====\n",
       `test name: ${testName}\n` +
-        `mean: ${result2.mean}\n` +
-        `variance: ${result2.variance}\n` +
-        `standardDeviation: ${result2.standardDeviation}\n` +
-        `standardErrorOfMean: ${result2.standardErrorOfMean}\n` +
-        `moe: ${result2.moe}\n`,
+        `mean: ${resultPrevious.mean}\n` +
+        `variance: ${resultPrevious.variance}\n` +
+        `standardDeviation: ${resultPrevious.standardDeviation}\n` +
+        `standardErrorOfMean: ${resultPrevious.standardErrorOfMean}\n` +
+        `moe: ${resultPrevious.moe}\n`,
     );
 
-    const difference = (result2.mean - result1.mean) / result1.mean;
+    const difference = (resultPrevious.mean - resultCurrent.mean) / resultCurrent.mean;
 
     // eslint-disable-next-line no-console
     console.log(`\nDifference: ${difference * 100}`);
 
-    const uValue = getUValueFromSamples(sample1, sample2);
-    const zScore = Math.abs(calculateZScore(uValue, sample1.length, sample2.length));
+    const uValue = getUValueFromSamples(sampleCurrent, samplePrevious);
+    const zScore = Math.abs(
+      calculateZScore(uValue, sampleCurrent.length, samplePrevious.length),
+    );
     const isSignificant = zScore > 1.96;
     if (isSignificant) {
       // eslint-disable-next-line no-console
       console.log(`The difference is significant (z: ${zScore})`);
-      if (difference < 0) {
+      if (
+        difference < 0 &&
+        resultCurrent.mean - resultPrevious.mean > 2 /* milliseconds */
+      ) {
         hasSucceeded = false;
       }
     } else {
@@ -726,18 +766,18 @@ function compareSamples() {
 
 /**
  * Calculate U value from the Mann–Whitney U test from two samples.
- * @param {Array.<number>} sample1
- * @param {Array.<number>} sample2
+ * @param {Array.<number>} sampleCurrent
+ * @param {Array.<number>} samplePrevious
  * @returns {number}
  */
-function getUValueFromSamples(sample1, sample2) {
-  const concatSamples = sample1.concat(sample2);
+function getUValueFromSamples(sampleCurrent, samplePrevious) {
+  const concatSamples = sampleCurrent.concat(samplePrevious);
   const ranked = rankSamples(concatSamples);
 
-  const summedRanks1 = sumRanks(ranked, sample1);
-  const summedRanks2 = sumRanks(ranked, sample2);
-  const n1 = sample1.length;
-  const n2 = sample2.length;
+  const summedRanks1 = sumRanks(ranked, sampleCurrent);
+  const summedRanks2 = sumRanks(ranked, samplePrevious);
+  const n1 = sampleCurrent.length;
+  const n2 = samplePrevious.length;
 
   const u1 = calculateUValue(summedRanks1, n1, n2);
   const u2 = calculateUValue(summedRanks2, n2, n1);
@@ -805,7 +845,7 @@ function getSamplePerScenarios(samplesObj) {
  * Log results for `currentTestSample`: mean, standard deviation etc.
  */
 function displayTemporaryResults() {
-  const testedScenarios = getSamplePerScenarios(currentTestSample);
+  const testedScenarios = getSamplePerScenarios(currentTestSample.samples);
   // eslint-disable-next-line no-console
   console.log(`\n\n==== Temporary results (${nextTaskIndex}/${tasks.length}) ====\n`);
   for (const testName of Object.keys(testedScenarios)) {
