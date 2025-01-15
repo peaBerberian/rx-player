@@ -57,10 +57,6 @@ const CHROME_OPTIONS = [
   "--disable-gpu",
   "--disable-dev-shm-usage",
   "--disk-cache-dir=/dev/null",
-
-  // We don't even care about that one but Chrome may not launch without this
-  // for some unknown reason
-  "--remote-debugging-port=9222",
 ];
 
 /** Options used when starting the Firefox browser. */
