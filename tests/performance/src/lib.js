@@ -142,7 +142,7 @@ function reportResult(testName, testResult) {
  */
 function done() {
   const testNumber = getTestNumber();
-  if (testNumber < 100) {
+  if (testNumber < 10) {
     location.hash = "#" + (testNumber + 1);
     location.reload();
   } else {
