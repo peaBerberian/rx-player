@@ -307,6 +307,8 @@ async function linkCurrentRxPlayer() {
  */
 async function linkRxPlayerBranch({ branchName, remoteGitUrl }) {
   const innerNodeModulesPath = path.join(currentDirectory, "node_modules");
+  const rootDir = path.join(currentDirectory, "..", "..");
+  await removeDir(path.join(rootDir, "dist"));
   await removeDir(innerNodeModulesPath);
   await fs.mkdir(innerNodeModulesPath);
   const rxPlayerPath = path.join(innerNodeModulesPath, "rx-player");
