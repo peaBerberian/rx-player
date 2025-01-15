@@ -25,7 +25,7 @@ const PERF_TESTS_PORT = 8080;
  * More iterations means (much) more time to perform tests, but also produce
  * better estimates.
  */
-const TEST_ITERATIONS = 50;
+const TEST_ITERATIONS = 100;
 
 /**
  * After initialization is done, contains the path allowing to run the Chrome
