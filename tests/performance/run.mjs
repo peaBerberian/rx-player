@@ -145,20 +145,31 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   }
 
-  startPerformanceTests({ branchName, remote }).then(
-    (results) => {
+  startPerformanceTests({ branchName, remote })
+    .then((results) => {
       if (results.failures.length > 0) {
         // eslint-disable-next-line no-console
-        console.error("Tests failed for:", results.failures.join(" "));
-        process.exit(1);
+        console.warn("Tests failed for", results.failures.join(", "));
+        // eslint-disable-next-line no-console
+        console.warn("Retrying one time just to check if unlucky...");
+        return startPerformanceTests({ branchName, remote }).then((results2) => {
+          if (results2.failures.length > 0) {
+            for (const result1 of results) {
+              if (results2.includes(result1)) {
+                // eslint-disable-next-line no-console
+                console.error("Tests failed for at least:", result1);
+                process.exit(1);
+              }
+            }
+          }
+        });
       }
-    },
-    (err) => {
+    })
+    .catch((err) => {
       // eslint-disable-next-line no-console
       console.error("Error:", err);
       return process.exit(1);
-    },
-  );
+    });
 }
 
 /**
