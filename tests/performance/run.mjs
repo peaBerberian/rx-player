@@ -26,7 +26,7 @@ const PERF_TESTS_PORT = 8080;
  *
  * TODO: GitHub actions fails when running the 128th browser. Find out why.
  */
-const TEST_ITERATIONS = 100;
+const TEST_ITERATIONS = 50;
 
 /**
  * After initialization is done, contains the path allowing to run the Chrome

@@ -184,7 +184,7 @@ function done() {
   } else {
     testNumber = Number(location.hash.substring(1));
   }
-  if (testNumber < 50) {
+  if (testNumber < 100) {
     location.hash = "#" + (testNumber + 1);
     if (page === "previous") {
       location.pathname = "/current.html";
