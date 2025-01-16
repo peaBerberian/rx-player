@@ -145,44 +145,55 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     }
   }
 
+  /* eslint-disable no-console */
   startPerformanceTests({ branchName, remote })
-    .then((results) => {
-      if (results.failures.length > 0) {
-        // eslint-disable-next-line no-console
-        console.warn("Tests failed for", results.failures.join(", "));
-        // eslint-disable-next-line no-console
-        console.warn("Retrying one time just to check if unlucky...");
-        return startPerformanceTests({ branchName, remote }).then((results2) => {
-          // eslint-disable-next-line no-console
-          console.error(
-            "Tests failed at first attempt for:",
-            results.failures.join(", "),
-          );
-          if (results2.failures.length > 0) {
-            for (const failure1 of results.failures) {
-              if (results2.failures.includes(failure1)) {
-                // eslint-disable-next-line no-console
-                console.error(
-                  "Tests failed at second attempt for:",
-                  results2.failures.join(", "),
-                );
-                process.exit(1);
-              }
-              // eslint-disable-next-line no-console
-              console.error(
-                "Tests failed at second attempt for:",
-                results2.failures.join(", "),
-              );
-            }
-          }
-        });
+    .then(async (results) => {
+      if (results.notSignificative.length > 0) {
+        console.log("No significative change for", results.better.join(", "));
       }
+      if (results.better.length > 0) {
+        console.log("Better performance for", results.better.join(", "));
+      }
+
+      if (results.worse.length === 0) {
+        process.exit(0);
+      }
+
+      console.warn("Tests failed for", results.worse.join(", "));
+      console.warn("Retrying one time just to check if unlucky...");
+
+      const results2 = await startPerformanceTests({ branchName, remote });
+      if (results2.notSignificative.length > 0) {
+        console.log(
+          "(2nd attempt) No significative change for",
+          results.better.join(", "),
+        );
+      }
+      if (results2.better.length > 0) {
+        console.log("(2nd attempt) Better performance for", results.better.join(", "));
+      }
+      if (results2.worse.length === 0) {
+        console.warn(
+          "Tests failed at first attempt but were not reproduced for:",
+          results.worse.join(", "),
+        );
+        process.exit(0);
+      }
+      console.error("Tests failed at first attempt for:", results.worse.join(", "));
+      for (const failure1 of results.worse) {
+        if (results2.worse.includes(failure1)) {
+          console.error("Tests failed at second attempt for:", results2.worse.join(", "));
+          process.exit(1);
+        }
+      }
+      console.error("Tests failed at second attempt for:", results2.worse.join(", "));
+      process.exit(0);
     })
     .catch((err) => {
-      // eslint-disable-next-line no-console
       console.error("Error:", err);
       return process.exit(1);
     });
+  /* eslint-enable no-console */
 }
 
 /**
@@ -589,8 +600,9 @@ function compareSamples() {
   };
 
   const results = {
-    failures: [],
-    success: [],
+    worse: [],
+    better: [],
+    notSignificative: [],
   };
   for (const testName of Object.keys(samplesPerScenario.current)) {
     const sampleCurrent = samplesPerScenario.current[testName];
@@ -638,13 +650,15 @@ function compareSamples() {
     if (isSignificant) {
       console.log(`      The difference is significant (z: ${zScore})`);
       if (differenceMs < -2) {
-        results.failures.push(testName);
+        results.worse.push(testName);
+      } else if (differenceMs > 2) {
+        results.better.push(testName);
       } else {
-        results.success.push(testName);
+        results.notSignificative.push(testName);
       }
     } else {
       console.log(`      The difference is not significant (z: ${zScore})`);
-      results.success.push(testName);
+      results.notSignificative.push(testName);
     }
     console.log("");
   }
