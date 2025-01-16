@@ -585,7 +585,10 @@ function compareSamples() {
     const zScore = Math.abs(
       calculateZScore(uValue, sampleCurrent.length, samplePrevious.length),
     );
-    const isSignificant = zScore > 1.96;
+    // For p-value of 5%
+    // const isSignificant = zScore > 1.96;
+    // For p-value of 1%
+    const isSignificant = zScore > 2.575829;
 
     /* eslint-disable no-console */
     console.log("");
