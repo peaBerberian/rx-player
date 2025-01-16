@@ -1,11 +1,10 @@
 name: Performance tests
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, synchronize, reopened]
 
 jobs:
   perf-tests:
-    if: ${{ github.event.label.name == 'Performance checks' }}
     runs-on: [ubuntu-latest]
     steps:
       - uses: actions/checkout@v2
@@ -21,4 +20,6 @@ jobs:
       - run: npm ci
       - run: export DISPLAY=:99
       - run: sudo Xvfb -ac :99 -screen 0 1280x1024x24 > /dev/null 2>&1 & # optional
-      - run: node tests/performance/run.mjs
+      - run:
+          node tests/performance/run.mjs -b $GITHUB_BASE_REF -u
+          https://github.com/canalplus/rx-player.git
