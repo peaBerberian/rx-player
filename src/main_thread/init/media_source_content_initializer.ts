@@ -57,7 +57,6 @@ import isNullOrUndefined from "../../utils/is_null_or_undefined";
 import noop from "../../utils/noop";
 import objectAssign from "../../utils/object_assign";
 import type { IReadOnlySharedReference } from "../../utils/reference";
-import sleep from "../../utils/sleep";
 import type { ISyncOrAsyncValue } from "../../utils/sync_or_async";
 import SyncOrAsync from "../../utils/sync_or_async";
 import type { CancellationSignal } from "../../utils/task_canceller";
@@ -206,10 +205,6 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     );
 
     this._setupInitialMediaSourceAndDecryption(mediaElement)
-      .then(async (initResult) => {
-        await sleep(200);
-        return initResult;
-      })
       .then((initResult) =>
         this._onInitialMediaSourceReady(
           mediaElement,
