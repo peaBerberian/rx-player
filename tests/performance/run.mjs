@@ -153,13 +153,26 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
         // eslint-disable-next-line no-console
         console.warn("Retrying one time just to check if unlucky...");
         return startPerformanceTests({ branchName, remote }).then((results2) => {
+          // eslint-disable-next-line no-console
+          console.error(
+            "Tests failed at first attempt for:",
+            results.failures.join(", "),
+          );
           if (results2.failures.length > 0) {
-            for (const result1 of results) {
-              if (results2.includes(result1)) {
+            for (const failure1 of results.failures) {
+              if (results2.failures.includes(failure1)) {
                 // eslint-disable-next-line no-console
-                console.error("Tests failed for at least:", result1);
+                console.error(
+                  "Tests failed at second attempt for:",
+                  results2.failures.join(", "),
+                );
                 process.exit(1);
               }
+              // eslint-disable-next-line no-console
+              console.error(
+                "Tests failed at second attempt for:",
+                results2.failures.join(", "),
+              );
             }
           }
         });
