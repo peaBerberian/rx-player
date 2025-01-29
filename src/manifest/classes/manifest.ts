@@ -60,10 +60,6 @@ interface IManifestParsingOptions {
    * manifest will be updated fully when it needs to be refreshed, and it will
    * fetched through the original URL. */
   manifestUpdateUrl?: string | undefined;
-  /** Specifies the behavior when audio tracks are not playable. */
-  onAudioTracksNotPlayable: "error" | "continue";
-  /** Specifies the behavior when video tracks are not playable. */
-  onVideoTracksNotPlayable: "error" | "continue";
 }
 
 /** Representation affected by a `decipherabilityUpdate` event. */
@@ -350,24 +346,11 @@ export default class Manifest
           parsedPeriod,
           unsupportedAdaptations,
           this._cachedCodecSupport,
-          {
-            onAudioTracksNotPlayable,
-            onVideoTracksNotPlayable,
-          },
           representationFilter,
         );
         return period;
       })
       .sort((a, b) => a.start - b.start);
-
-    if (unsupportedAdaptations.length > 0) {
-      const error = new MediaError(
-        "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-        "An Adaptation contains only incompatible codecs.",
-        { tracks: unsupportedAdaptations.map(toTaggedTrack) },
-      );
-      warnings.push(error);
-    }
 
     /**
      * @deprecated It is here to ensure compatibility with the way the

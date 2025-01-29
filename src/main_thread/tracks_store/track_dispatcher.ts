@@ -123,6 +123,7 @@ export default class TrackDispatcher extends EventEmitter<ITrackDispatcherEvent>
       this._canceller = new TaskCanceller();
       this._lastEmitted = null;
       this._adaptationRef.setValue(null);
+      this.trigger("noPlayableRepresentation", null);
       return;
     }
     const { adaptation, switchingMode, relativeResumingPosition } = newTrackInfo;
@@ -205,6 +206,8 @@ export default class TrackDispatcher extends EventEmitter<ITrackDispatcherEvent>
         }
       }
       if (playableRepresentations.length <= 0) {
+        // eslint-disable-next-line no-console
+        console.error("DEBUG: triggering noPlayableRepresentation");
         self.trigger("noPlayableRepresentation", null);
         return;
       }

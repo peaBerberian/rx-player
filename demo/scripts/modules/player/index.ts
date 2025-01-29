@@ -289,6 +289,8 @@ const PlayerModule = declareModule(
             {
               mode: state.get("relyOnWorker") ? "auto" : "main",
               textTrackElement,
+              onAudioTracksNotPlayable: "error",
+              onVideoTracksNotPlayable: "error",
             },
             arg,
           ) as ILoadVideoOptions,

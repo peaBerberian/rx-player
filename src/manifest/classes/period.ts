@@ -60,12 +60,6 @@ export default class Period implements IPeriodMetadata {
   /** Array containing every stream event happening on the period */
   public streamEvents: IManifestStreamEvent[];
 
-  /** Specifies the behavior when audio tracks are not playable. */
-  public onAudioTracksNotPlayable: "error" | "continue";
-
-  /** Specifies the behavior when video tracks are not playable. */
-  public onVideoTracksNotPlayable: "error" | "continue";
-
   /**
    * @constructor
    * @param {Object} args
@@ -79,31 +73,15 @@ export default class Period implements IPeriodMetadata {
     args: IParsedPeriod,
     unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
-    options: {
-      onAudioTracksNotPlayable: "error" | "continue";
-      onVideoTracksNotPlayable: "error" | "continue";
-    },
     representationFilter?: IRepresentationFilter | undefined,
   ) {
     this.id = args.id;
-    this.onAudioTracksNotPlayable = options.onAudioTracksNotPlayable;
-    this.onVideoTracksNotPlayable = options.onVideoTracksNotPlayable;
 
     this.adaptations = this.createAdaptationsObject(
       args.adaptations,
       cachedCodecSupport,
       representationFilter,
     );
-
-    if (isArrayEmpty(this.adaptations.video) && isArrayEmpty(this.adaptations.audio)) {
-      throw new MediaError(
-        "MANIFEST_PARSE_ERROR",
-        "No supported audio and video tracks.",
-      );
-    }
-
-    const mediaSupport = this.getMediaSupport(unsupportedAdaptations);
-    this.checkIfStreamIsSupported(mediaSupport);
 
     this.duration = args.duration;
     this.start = args.start;
@@ -138,77 +116,77 @@ export default class Period implements IPeriodMetadata {
     return manifestAdaptations;
   }
 
-  getMediaSupport(
-    unsupportedAdaptations: Adaptation[],
-  ): Record<ITrackType, boolean | undefined> {
-    const hasSupportedMedia: Record<ITrackType, boolean | undefined> = {
-      audio: undefined,
-      video: undefined,
-      text: undefined,
-    };
-    (Object.keys(this.adaptations) as ITrackType[]).forEach((ttype) => {
-      const adaptationsForType = this.adaptations[ttype];
-      if (adaptationsForType === undefined) {
-        return;
-      }
-      let hasSupportedAdaptations: boolean | undefined = false;
-      for (const adaptation of adaptationsForType) {
-        if (!adaptation.supportStatus.hasCodecWithUndefinedSupport) {
-          // Go to next adaptation as an optimisation measure.
-          // NOTE this only is true if we never change a codec from supported
-          // to unsuported and its opposite.
+  // getMediaSupport(
+  //   unsupportedAdaptations: Adaptation[],
+  // ): Record<ITrackType, boolean | undefined> {
+  //   const hasSupportedMedia: Record<ITrackType, boolean | undefined> = {
+  //     audio: undefined,
+  //     video: undefined,
+  //     text: undefined,
+  //   };
+  //   (Object.keys(this.adaptations) as ITrackType[]).forEach((ttype) => {
+  //     const adaptationsForType = this.adaptations[ttype];
+  //     if (adaptationsForType === undefined) {
+  //       return;
+  //     }
+  //     let hasSupportedAdaptations: boolean | undefined = false;
+  //     for (const adaptation of adaptationsForType) {
+  //       if (!adaptation.supportStatus.hasCodecWithUndefinedSupport) {
+  //         // Go to next adaptation as an optimisation measure.
+  //         // NOTE this only is true if we never change a codec from supported
+  //         // to unsuported and its opposite.
 
-          if (adaptation.supportStatus.hasSupportedCodec === true) {
-            hasSupportedAdaptations = true;
-          }
-          continue;
-        }
-        if (adaptation.supportStatus.hasSupportedCodec === false) {
-          unsupportedAdaptations.push(adaptation);
-        }
+  //         if (adaptation.supportStatus.hasSupportedCodec === true) {
+  //           hasSupportedAdaptations = true;
+  //         }
+  //         continue;
+  //       }
+  //       if (adaptation.supportStatus.hasSupportedCodec === false) {
+  //         unsupportedAdaptations.push(adaptation);
+  //       }
 
-        if (hasSupportedAdaptations === false) {
-          hasSupportedAdaptations = adaptation.supportStatus.hasSupportedCodec;
-        } else if (
-          hasSupportedAdaptations !== true &&
-          adaptation.supportStatus.hasSupportedCodec === true
-        ) {
-          hasSupportedAdaptations = true;
-        }
-      }
-      hasSupportedMedia[ttype] = hasSupportedAdaptations;
-    });
-    return hasSupportedMedia;
-  }
+  //       if (hasSupportedAdaptations === false) {
+  //         hasSupportedAdaptations = adaptation.supportStatus.hasSupportedCodec;
+  //       } else if (
+  //         hasSupportedAdaptations !== true &&
+  //         adaptation.supportStatus.hasSupportedCodec === true
+  //       ) {
+  //         hasSupportedAdaptations = true;
+  //       }
+  //     }
+  //     hasSupportedMedia[ttype] = hasSupportedAdaptations;
+  //   });
+  //   return hasSupportedMedia;
+  // }
 
-  checkIfStreamIsSupported(hasSupportedMedia: Record<ITrackType, boolean | undefined>) {
-    const isAudioAndVideoUnsupported =
-      hasSupportedMedia.video === false && hasSupportedMedia.audio === false;
+  // checkIfStreamIsSupported(hasSupportedMedia: Record<ITrackType, boolean | undefined>) {
+  //   const isAudioAndVideoUnsupported =
+  //     hasSupportedMedia.video === false && hasSupportedMedia.audio === false;
 
-    ["video" as const, "audio" as const].forEach((tType) => {
-      if (hasSupportedMedia[tType] !== false) {
-        // do nothing
-      } else if (isAudioAndVideoUnsupported) {
-        throw new MediaError(
-          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + tType + " adaptations",
-          { tracks: undefined },
-        );
-      } else if (tType === "audio" && this.onAudioTracksNotPlayable === "error") {
-        throw new MediaError(
-          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + tType + " adaptations",
-          { tracks: undefined },
-        );
-      } else if (tType === "video" && this.onVideoTracksNotPlayable === "error") {
-        throw new MediaError(
-          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + tType + " adaptations",
-          { tracks: undefined },
-        );
-      }
-    });
-  }
+  //   ["video" as const, "audio" as const].forEach((tType) => {
+  //     if (hasSupportedMedia[tType] !== false) {
+  //       // do nothing
+  //     } else if (isAudioAndVideoUnsupported) {
+  //       throw new MediaError(
+  //         "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+  //         "No supported " + tType + " adaptations",
+  //         { tracks: undefined },
+  //       );
+  //     } else if (tType === "audio" && this.onAudioTracksNotPlayable === "error") {
+  //       throw new MediaError(
+  //         "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+  //         "No supported " + tType + " adaptations",
+  //         { tracks: undefined },
+  //       );
+  //     } else if (tType === "video" && this.onVideoTracksNotPlayable === "error") {
+  //       throw new MediaError(
+  //         "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+  //         "No supported " + tType + " adaptations",
+  //         { tracks: undefined },
+  //       );
+  //     }
+  //   });
+  // }
 
   /**
    * Some environments (e.g. in a WebWorker) may not have the capability to know
@@ -270,7 +248,7 @@ export default class Period implements IPeriodMetadata {
       }
       hasSupportedMedia[ttype] = hasSupportedAdaptations;
     }, {});
-    this.checkIfStreamIsSupported(hasSupportedMedia);
+    // this.checkIfStreamIsSupported(hasSupportedMedia);
   }
 
   /**
