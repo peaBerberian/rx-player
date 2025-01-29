@@ -4,7 +4,6 @@ import type {
   IParsedPeriod,
   IParsedRepresentation,
 } from "../../../parsers/manifest";
-import type { IPlayerError } from "../../../public_types";
 import getMonotonicTimeStamp from "../../../utils/monotonic_timestamp";
 import CodecSupportCache from "../codec_support_cache";
 import type IManifest from "../manifest";
@@ -80,8 +79,7 @@ describe("Manifest - Manifest", () => {
     };
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const warnings: IPlayerError[] = [];
-    const manifest = new Manifest(simpleFakeManifest, {}, warnings);
+    const manifest = new Manifest(simpleFakeManifest, {});
 
     expect(manifest.adaptations).toEqual({});
     expect(manifest.availabilityStartTime).toEqual(undefined);
@@ -91,7 +89,6 @@ describe("Manifest - Manifest", () => {
     expect(manifest.lifetime).toEqual(undefined);
     expect(manifest.getMaximumSafePosition()).toEqual(10);
     expect(manifest.getMinimumSafePosition()).toEqual(0);
-    expect(warnings).toEqual([]);
     expect(manifest.periods).toEqual([]);
     expect(manifest.suggestedPresentationDelay).toEqual(undefined);
     expect(manifest.uris).toEqual([]);
@@ -133,7 +130,7 @@ describe("Manifest - Manifest", () => {
     }));
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const manifest = new Manifest(simpleFakeManifest, {}, []);
+    const manifest = new Manifest(simpleFakeManifest, {});
     expect(fakePeriod).toHaveBeenCalledTimes(2);
     expect(fakePeriod).toHaveBeenCalledWith(
       period1,
@@ -193,13 +190,9 @@ describe("Manifest - Manifest", () => {
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
 
-    const manifest = new Manifest(
-      simpleFakeManifest,
-      {
-        representationFilter,
-      },
-      [],
-    );
+    const manifest = new Manifest(simpleFakeManifest, {
+      representationFilter,
+    });
     expect(manifest).not.toBe(null);
 
     expect(fakePeriod).toHaveBeenCalledTimes(2);
@@ -252,7 +245,7 @@ describe("Manifest - Manifest", () => {
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
 
-    const manifest = new Manifest(simpleFakeManifest, {}, []);
+    const manifest = new Manifest(simpleFakeManifest, {});
     expect(fakePeriod).toHaveBeenCalledTimes(2);
     expect(fakePeriod).toHaveBeenCalledWith(
       period1,
@@ -312,8 +305,7 @@ describe("Manifest - Manifest", () => {
       default: fakePeriod,
     }));
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const warnings: IPlayerError[] = [];
-    const manifest = new Manifest(oldManifestArgs, {}, warnings);
+    const manifest = new Manifest(oldManifestArgs, {});
 
     expect(manifest.adaptations).toEqual(oldPeriod1.adaptations);
     expect(manifest.availabilityStartTime).toEqual(5);
@@ -371,7 +363,7 @@ describe("Manifest - Manifest", () => {
       uris: ["url1", "url2"],
     };
 
-    const manifest1 = new Manifest(oldManifestArgs1, {}, []);
+    const manifest1 = new Manifest(oldManifestArgs1, {});
     expect(manifest1.getUrls()).toEqual(["url1", "url2"]);
 
     const oldManifestArgs2 = {
@@ -400,7 +392,7 @@ describe("Manifest - Manifest", () => {
       },
       uris: [],
     };
-    const manifest2 = new Manifest(oldManifestArgs2, {}, []);
+    const manifest2 = new Manifest(oldManifestArgs2, {});
     expect(manifest2.getUrls()).toEqual([]);
   });
 
@@ -448,7 +440,7 @@ describe("Manifest - Manifest", () => {
     };
 
     const Manifest = (await vi.importActual("../manifest")).default as typeof IManifest;
-    const manifest = new Manifest(oldManifestArgs, {}, []);
+    const manifest = new Manifest(oldManifestArgs, {});
 
     const mockTrigger = vi
       .spyOn(

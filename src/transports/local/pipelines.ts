@@ -73,7 +73,7 @@ export default function getLocalManifestPipelines(
       }
       const parsed = parseLocalManifest(loadedManifest as ILocalManifest);
       const warnings: IPlayerError[] = [];
-      const manifest = new Manifest(parsed, transportOptions, warnings);
+      const manifest = new Manifest(parsed, transportOptions);
       return { manifest, url: undefined, warnings };
     },
   };

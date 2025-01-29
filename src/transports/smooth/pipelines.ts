@@ -77,13 +77,9 @@ export default function (transportOptions: ITransportOptions): ITransportPipelin
       const parserResult = smoothManifestParser(documentData, url, manifestReceivedTime);
 
       const warnings: IPlayerError[] = [];
-      const manifest = new Manifest(
-        parserResult,
-        {
-          representationFilter: transportOptions.representationFilter,
-        },
-        warnings,
-      );
+      const manifest = new Manifest(parserResult, {
+        representationFilter: transportOptions.representationFilter,
+      });
       return { manifest, url, warnings };
     },
   };

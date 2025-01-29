@@ -712,8 +712,9 @@ _type_: `string|undefined`
 
 _defaults_: `"error"`
 
-Specifies the behavior when all audio tracks are not playable -  This can occur if the device does not support 
-the required audio or video codecs, or if the content cannot be decrypted, for example, due to an insufficient security level.
+Specifies the behavior when all audio tracks are not playable - This can occur if the
+device does not support the required audio or video codecs, or if the content cannot be
+decrypted, for example, due to an insufficient security level.
 
 Those are the possible values for that option:
 

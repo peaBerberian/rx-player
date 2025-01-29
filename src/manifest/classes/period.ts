@@ -63,10 +63,6 @@ export default class Period implements IPeriodMetadata {
   /**
    * @constructor
    * @param {Object} args
-   * @param {Array.<Object>} unsupportedAdaptations - Array on which
-   * `Adaptation`s objects which have no supported `Representation` will be
-   * pushed.
-   * This array might be useful for minor error reporting.
    * @param {function|undefined} [representationFilter]
    */
   constructor(

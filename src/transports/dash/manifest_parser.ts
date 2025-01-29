@@ -153,7 +153,7 @@ export default function generateManifestParser(
           return Promise.reject(cancelSignal.cancellationError);
         }
         const warnings: IPlayerError[] = [];
-        const manifest = new Manifest(parserResponse.value.parsed, options, warnings);
+        const manifest = new Manifest(parserResponse.value.parsed, options);
         return { manifest, url, warnings };
       }
 
