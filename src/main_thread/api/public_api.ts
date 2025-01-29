@@ -931,8 +931,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           serverSyncInfos,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
-          onAudioTracksNotPlayable,
-          onVideoTracksNotPlayable,
         });
         initializer = new features.mainThreadMediaSourceInit({
           adaptiveOptions,
@@ -975,8 +973,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           representationFilter: options.representationFilter,
           __priv_manifestUpdateUrl,
           __priv_patchLastSegmentInSidx,
-          onAudioTracksNotPlayable,
-          onVideoTracksNotPlayable,
         };
         initializer = new features.multithread.init({
           adaptiveOptions,
@@ -993,8 +989,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           textTrackOptions,
           worker: this._priv_worker,
           url,
-          onAudioTracksNotPlayable,
-          onVideoTracksNotPlayable,
         });
       }
     } else {
@@ -1037,6 +1031,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       tracksStore: null,
       mediaElementTracksStore,
       useWorker,
+      onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable,
     };
 
     // Bind events
@@ -1086,10 +1082,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       this._priv_onBitrateEstimateChange(bitrateEstimateInfo),
     );
     initializer.addEventListener("manifestReady", (manifest) =>
-      this._priv_onManifestReady(contentInfos, manifest, {
-        onAudioTracksNotPlayable,
-        onVideoTracksNotPlayable,
-      }),
+      this._priv_onManifestReady(contentInfos, manifest),
     );
     initializer.addEventListener("manifestUpdate", (updates) =>
       this._priv_onManifestUpdate(contentInfos, updates),
@@ -2575,10 +2568,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
   private _priv_onManifestReady(
     contentInfos: IPublicApiContentInfos,
     manifest: IManifest | IManifestMetadata,
-    options: {
-      onAudioTracksNotPlayable: "continue" | "error";
-      onVideoTracksNotPlayable: "continue" | "error";
-    },
   ): void {
     if (contentInfos.contentId !== this._priv_contentInfos?.contentId) {
       return; // Event for another content
@@ -2592,8 +2581,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const tracksStore = new TracksStore({
       preferTrickModeTracks: this._priv_preferTrickModeTracks,
       defaultAudioTrackSwitchingMode: contentInfos.defaultAudioTrackSwitchingMode,
-      onAudioTracksNotPlayable: options.onAudioTracksNotPlayable,
-      onVideoTracksNotPlayable: options.onVideoTracksNotPlayable,
+      onAudioTracksNotPlayable: contentInfos.onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable: contentInfos.onVideoTracksNotPlayable,
     });
     contentInfos.tracksStore = tracksStore;
     tracksStore.addEventListener("newAvailablePeriods", (p) => {
@@ -3444,6 +3433,25 @@ interface IPublicApiContentInfos {
    * content.
    */
   useWorker: boolean;
+  /**
+   * Specifies the behavior when all audio tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without audio.
+   * - If set to `"error"`, an error will be thrown to indicate that the audio tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onAudioTracksNotPlayable: "continue" | "error";
+
+  /**
+   * Specifies the behavior when all video tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without video.
+   * - If set to `"error"`, an error will be thrown to indicate that the video tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onVideoTracksNotPlayable: "continue" | "error";
 }
 
 export default Player;

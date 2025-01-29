@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-import config from "../../../../config";
 import dash from "../../../../transports/dash";
 import type { ILoaders } from "../types";
 
 export default function addDashFeature(loaders: ILoaders): void {
-  const {
-    DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-    DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-  } = config.getCurrent();
-  const transports = dash({
-    lowLatencyMode: false,
-    onAudioTracksNotPlayable: DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-    onVideoTracksNotPlayable: DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-  });
+  const transports = dash({ lowLatencyMode: false });
   loaders.dash = transports;
 }

@@ -14,19 +14,10 @@
  * limitations under the License.
  */
 
-import config from "../../../../config";
 import mpl from "../../../../transports/metaplaylist";
 import type { ILoaders } from "../types";
 
 export default function addMplFeature(loaders: ILoaders): void {
-  const {
-    DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-    DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-  } = config.getCurrent();
-  const transports = mpl({
-    lowLatencyMode: false,
-    onAudioTracksNotPlayable: DEFAULT_AUDIO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-    onVideoTracksNotPlayable: DEFAULT_VIDEO_TRACKS_NOT_PLAYABLE_BEHAVIOR,
-  });
+  const transports = mpl({ lowLatencyMode: false });
   loaders.metaplaylist = transports;
 }

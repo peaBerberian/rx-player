@@ -26,9 +26,6 @@ class FakePeriod implements IPeriodMetadata {
   public end: number | undefined;
   public streamEvents: IManifestStreamEvent[];
 
-  public onAudioTracksNotPlayable: "continue" | "error";
-  public onVideoTracksNotPlayable: "continue" | "error";
-
   constructor({
     id,
     start,
@@ -44,8 +41,6 @@ class FakePeriod implements IPeriodMetadata {
     this.duration = end === undefined ? undefined : end - (start ?? 0);
     this.streamEvents = [];
     this.adaptations = {};
-    this.onAudioTracksNotPlayable = "error";
-    this.onVideoTracksNotPlayable = "error";
   }
   createAdaptationsObject() {
     return {};

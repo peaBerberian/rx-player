@@ -206,8 +206,6 @@ export default class TrackDispatcher extends EventEmitter<ITrackDispatcherEvent>
         }
       }
       if (playableRepresentations.length <= 0) {
-        // eslint-disable-next-line no-console
-        console.error("DEBUG: triggering noPlayableRepresentation");
         self.trigger("noPlayableRepresentation", null);
         return;
       }

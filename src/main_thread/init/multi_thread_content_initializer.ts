@@ -1378,10 +1378,6 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
       const updatedCodecs = updateManifestCodecSupport(
         manifest,
         this._currentContentInfo?.contentDecryptor ?? null,
-        {
-          onAudioTracksNotPlayable: this._settings.onAudioTracksNotPlayable,
-          onVideoTracksNotPlayable: this._settings.onVideoTracksNotPlayable,
-        },
       );
       if (updatedCodecs.length > 0) {
         sendMessage(this._settings.worker, {
@@ -1909,11 +1905,6 @@ export interface IInitializeArguments {
     /** Behavior when a new video and/or audio codec is encountered. */
     onCodecSwitch: "continue" | "reload";
   };
-  /** Specifies the behavior when audio tracks are not playable. */
-  onAudioTracksNotPlayable: "error" | "continue";
-  /** Specifies the behavior when video tracks are not playable. */
-  onVideoTracksNotPlayable: "error" | "continue";
-
   /**
    * When set to an object, enable "Common Media Client Data", or "CMCD".
    */
