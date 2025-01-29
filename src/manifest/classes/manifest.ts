@@ -326,12 +326,7 @@ export default class Manifest
     warnings: IPlayerError[],
   ) {
     super();
-    const {
-      representationFilter,
-      manifestUpdateUrl,
-      onAudioTracksNotPlayable,
-      onVideoTracksNotPlayable,
-    } = options;
+    const { representationFilter, manifestUpdateUrl } = options;
     this.manifestFormat = ManifestMetadataFormat.Class;
     this.id = generateNewManifestId();
     this.expired = parsedManifest.expired ?? null;
@@ -339,12 +334,10 @@ export default class Manifest
     this.clockOffset = parsedManifest.clockOffset;
     this._cachedCodecSupport = new CodecSupportCache([]);
 
-    const unsupportedAdaptations: Adaptation[] = [];
     this.periods = parsedManifest.periods
       .map((parsedPeriod) => {
         const period = new Period(
           parsedPeriod,
-          unsupportedAdaptations,
           this._cachedCodecSupport,
           representationFilter,
         );
