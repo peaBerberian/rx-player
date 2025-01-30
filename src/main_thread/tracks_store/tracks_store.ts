@@ -20,7 +20,11 @@
  */
 
 import config from "../../config";
-import type { IAdaptationChoice, IRepresentationsChoice } from "../../core/types";
+import type {
+  IAdaptationChoice,
+  IBufferType,
+  IRepresentationsChoice,
+} from "../../core/types";
 import { MediaError } from "../../errors";
 import log from "../../log";
 import type {
@@ -166,6 +170,49 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
 
     /** Periods which have just been added. */
     const addedPeriods: ITSPeriodObject[] = [];
+
+    for (const period of periods) {
+      ["audio" as const, "video" as const].forEach((ttype: ITrackType) => {
+        const forType = period.adaptations[ttype];
+        const periodHasAdaptationForType = forType !== undefined && forType.length > 0;
+        if (!periodHasAdaptationForType) {
+          log.debug(
+            `TS: The period does not have adaptation for ${ttype} there is no track to choose`,
+          );
+          return;
+        }
+        const firstPlayableAdaptation = findFirstPlayableAdaptation(period, ttype);
+        if (
+          forType !== undefined &&
+          forType.every((a) => a.supportStatus.hasSupportedCodec === false)
+        ) {
+          const err = new MediaError(
+            "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
+            "No supported " + ttype + " adaptations",
+            { tracks: undefined },
+          );
+          if (
+            firstPlayableAdaptation === undefined &&
+            ttype === "audio" &&
+            this.onAudioTracksNotPlayable === "continue"
+          ) {
+            // Audio is not playable but video may be playable, let's continue the playback.
+            this.trigger("warning", err);
+          } else if (
+            firstPlayableAdaptation === undefined &&
+            ttype === "video" &&
+            this.onVideoTracksNotPlayable === "continue"
+          ) {
+            // Video is not playable but audio may be playable, let's continue the playback.
+            this.trigger("warning", err);
+          } else if (firstPlayableAdaptation !== undefined) {
+            this.trigger("warning", err);
+          } else {
+            this.trigger("error", err);
+          }
+        }
+      });
+    }
 
     let newPListIdx = 0;
     for (let i = 0; i < this._storedPeriodInfo.length; i++) {
@@ -411,80 +458,9 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     const dispatcher = new TrackDispatcher(adaptationRef);
     periodObj[bufferType].dispatcher = dispatcher;
 
-    dispatcher.addEventListener("noPlayableRepresentation", () => {
-      const periodHasAdaptationForType =
-        period.adaptations[bufferType] !== undefined &&
-        period.adaptations[bufferType].length > 0;
-      const firstPlayableAdaptation = findFirstPlayableAdaptation(period, bufferType);
-
-      if (!periodHasAdaptationForType) {
-        log.debug(
-          `TS: The period does not have adaptation for ${bufferType} there is no track to choose`,
-        );
-        return;
-      }
-
-      if (bufferType === "text") {
-        return;
-      }
-      if (
-        firstPlayableAdaptation === undefined &&
-        bufferType === "audio" &&
-        this.onAudioTracksNotPlayable === "continue"
-      ) {
-        // Audio is not playable but video may be playable, let's continue the playback.
-        log.warn(`TS: No playable audio, continuing without audio`);
-      } else if (
-        firstPlayableAdaptation === undefined &&
-        bufferType === "video" &&
-        this.onVideoTracksNotPlayable === "continue"
-      ) {
-        // Video is not playable but audio may be playable, let's continue the playback.
-        log.warn(`TS: No playable video, continuing with audio only`);
-      } else if (firstPlayableAdaptation === undefined) {
-        const noRepErr = new MediaError(
-          "NO_PLAYABLE_REPRESENTATION",
-          `No ${bufferType} Representation can be played`,
-          { tracks: undefined },
-        );
-        this.trigger("error", noRepErr);
-        this.dispose();
-        return;
-      }
-      let typeInfo = getPeriodItem(this._storedPeriodInfo, period.id)?.[bufferType];
-      if (isNullOrUndefined(typeInfo)) {
-        return;
-      }
-      const switchingMode =
-        bufferType === "audio" ? this._defaultAudioTrackSwitchingMode : "reload";
-      const storedSettings =
-        firstPlayableAdaptation !== undefined
-          ? {
-              adaptation: firstPlayableAdaptation,
-              switchingMode,
-              lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
-                null,
-              ),
-            }
-          : null;
-      typeInfo.storedSettings = storedSettings;
-      this.trigger("trackUpdate", {
-        period: toExposedPeriod(period),
-        trackType: bufferType,
-        reason: "no-playable-representation",
-      });
-
-      // The previous event trigger could have had side-effects, so we
-      // re-check if we're still mostly in the same state
-      if (this._isDisposed) {
-        return; // Someone disposed the `TracksStore` on the previous side-effect
-      }
-      typeInfo = getPeriodItem(this._storedPeriodInfo, period.id)?.[bufferType];
-      if (isNullOrUndefined(typeInfo) || typeInfo.storedSettings !== storedSettings) {
-        return;
-      }
-      typeInfo.dispatcher?.updateTrack(storedSettings);
-    });
+    dispatcher.addEventListener("noPlayableRepresentation", () =>
+      this.onNoPlayableRepresentation(period, bufferType),
+    );
     dispatcher.addEventListener("noPlayableLockedRepresentation", () => {
       // TODO check that it doesn't already lead to segment loading or MediaSource
       // reloading
@@ -530,6 +506,92 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
         return;
       }
     }
+  }
+
+  /**
+   * Handle the noPlayableRepresentation event, trigger an error if no fallback is possible.
+   * and can trigger event "noPlayableTracks"
+   * @param period - The period that has no playable representation
+   * @param bufferType - The media type that is not playable
+   */
+  private onNoPlayableRepresentation(period: IPeriodMetadata, bufferType: IBufferType) {
+    const periodHasAdaptationForType =
+      period.adaptations[bufferType] !== undefined &&
+      period.adaptations[bufferType].length > 0;
+    const firstPlayableAdaptation = findFirstPlayableAdaptation(period, bufferType);
+
+    if (!periodHasAdaptationForType) {
+      log.debug(
+        `TS: The period does not have adaptation for ${bufferType} there is no track to choose`,
+      );
+      return;
+    }
+
+    if (bufferType === "text") {
+      return;
+    }
+
+    if (
+      firstPlayableAdaptation === undefined &&
+      bufferType === "audio" &&
+      this.onAudioTracksNotPlayable === "continue"
+    ) {
+      // Audio is not playable but video may be playable, let's continue the playback.
+      log.warn(`TS: No playable audio, continuing without audio`);
+      this.trigger("noPlayableTracks", bufferType);
+    } else if (
+      firstPlayableAdaptation === undefined &&
+      bufferType === "video" &&
+      this.onVideoTracksNotPlayable === "continue"
+    ) {
+      // Video is not playable but audio may be playable, let's continue the playback.
+      log.warn(`TS: No playable video, continuing with audio only`);
+      this.trigger("noPlayableTracks", bufferType);
+    } else if (firstPlayableAdaptation === undefined) {
+      const noRepErr = new MediaError(
+        "NO_PLAYABLE_REPRESENTATION",
+        `No ${bufferType} Representation can be played`,
+        { tracks: undefined },
+      );
+      this.trigger("noPlayableTracks", bufferType);
+      this.trigger("error", noRepErr);
+      this.dispose();
+      return;
+    }
+    let typeInfo = getPeriodItem(this._storedPeriodInfo, period.id)?.[bufferType];
+    if (isNullOrUndefined(typeInfo)) {
+      return;
+    }
+    const switchingMode =
+      bufferType === "audio" ? this._defaultAudioTrackSwitchingMode : "reload";
+    const storedSettings =
+      firstPlayableAdaptation !== undefined
+        ? {
+            adaptation: firstPlayableAdaptation,
+            switchingMode,
+            lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
+              null,
+            ),
+          }
+        : null;
+    typeInfo.storedSettings = storedSettings;
+
+    this.trigger("trackUpdate", {
+      period: toExposedPeriod(period),
+      trackType: bufferType,
+      reason: "no-playable-representation",
+    });
+
+    // The previous event trigger could have had side-effects, so we
+    // re-check if we're still mostly in the same state
+    if (this._isDisposed) {
+      return; // Someone disposed the `TracksStore` on the previous side-effect
+    }
+    typeInfo = getPeriodItem(this._storedPeriodInfo, period.id)?.[bufferType];
+    if (isNullOrUndefined(typeInfo) || typeInfo.storedSettings !== storedSettings) {
+      return;
+    }
+    typeInfo.dispatcher?.updateTrack(storedSettings);
   }
 
   /**
@@ -1308,34 +1370,36 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
         continue;
       }
 
-      const audioAdaptation = getSupportedAdaptations(period, "audio")[0];
-      trackStorePeriod.audio.storedSettings =
-        audioAdaptation === undefined
-          ? null
-          : {
-              adaptation: audioAdaptation,
-              switchingMode: this._defaultAudioTrackSwitchingMode,
-              lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
-                null,
-              ),
-            };
+      const audioAdaptation = getSupportedAdaptations(period, "audio")[0] as
+        | IAdaptationMetadata
+        | undefined;
+      if (audioAdaptation === undefined) {
+        this.onNoPlayableRepresentation(period, "audio");
+      } else {
+        trackStorePeriod.audio.storedSettings = {
+          adaptation: audioAdaptation,
+          switchingMode: this._defaultAudioTrackSwitchingMode,
+          lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(null),
+        };
+      }
 
-      const baseVideoAdaptation = getSupportedAdaptations(period, "video")[0];
-      const videoAdaptation = getRightVideoTrack(
-        baseVideoAdaptation,
-        this._isTrickModeTrackEnabled,
-      );
-      trackStorePeriod.video.storedSettings =
-        videoAdaptation === undefined
-          ? null
-          : {
-              adaptation: videoAdaptation,
-              adaptationBase: baseVideoAdaptation,
-              switchingMode: DEFAULT_VIDEO_TRACK_SWITCHING_MODE,
-              lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(
-                null,
-              ),
-            };
+      const baseVideoAdaptation = getSupportedAdaptations(period, "video")[0] as
+        | IAdaptationMetadata
+        | undefined;
+      if (baseVideoAdaptation === undefined) {
+        this.onNoPlayableRepresentation(period, "video");
+      } else {
+        const videoAdaptation = getRightVideoTrack(
+          baseVideoAdaptation,
+          this._isTrickModeTrackEnabled,
+        );
+        trackStorePeriod.video.storedSettings = {
+          adaptation: videoAdaptation,
+          adaptationBase: baseVideoAdaptation,
+          switchingMode: DEFAULT_VIDEO_TRACK_SWITCHING_MODE,
+          lockedRepresentations: new SharedReference<IRepresentationsChoice | null>(null),
+        };
+      }
 
       let textAdaptation: IAdaptationMetadata | null = null;
       const forcedSubtitles = (period.adaptations.text ?? []).filter(
