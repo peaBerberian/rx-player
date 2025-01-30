@@ -101,6 +101,7 @@ import type {
   ITrackType,
   IModeInformation,
   IWorkerSettings,
+  INoPlayableTrackEventPayload,
 } from "../../public_types";
 import arrayFind from "../../utils/array_find";
 import arrayIncludes from "../../utils/array_includes";
@@ -2602,14 +2603,18 @@ class Player extends EventEmitter<IPublicAPIEvent> {
         this._priv_onAvailableTracksMayHaveChanged(e.trackType);
       }
     });
-    contentInfos.tracksStore.addEventListener("warning", (err) => {
+    tracksStore.addEventListener("warning", (err) => {
       this.trigger("warning", err);
     });
-    contentInfos.tracksStore.addEventListener("error", (err) => {
+    tracksStore.addEventListener("error", (err) => {
       this._priv_onFatalError(err, contentInfos);
     });
 
-    contentInfos.tracksStore.onManifestUpdate(manifest);
+    tracksStore.addEventListener("noPlayableTrack", (trackType) => {
+      this.trigger("noPlayableTrack", trackType);
+    });
+
+    tracksStore.onManifestUpdate(manifest);
   }
 
   /**
@@ -3368,6 +3373,7 @@ interface IPublicAPIEvent {
   streamEvent: IStreamEvent;
   streamEventSkip: IStreamEvent;
   inbandEvents: IInbandEvent[];
+  noPlayableTrack: INoPlayableTrackEventPayload;
 }
 
 /** State linked to a particular contents loaded by the public API. */

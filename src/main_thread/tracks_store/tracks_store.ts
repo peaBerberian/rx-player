@@ -510,7 +510,7 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
 
   /**
    * Handle the noPlayableRepresentation event, trigger an error if no fallback is possible.
-   * and can trigger event "noPlayableTracks"
+   * and can trigger event "noPlayableTrack"
    * @param period - The period that has no playable representation
    * @param bufferType - The media type that is not playable
    */
@@ -538,7 +538,10 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     ) {
       // Audio is not playable but video may be playable, let's continue the playback.
       log.warn(`TS: No playable audio, continuing without audio`);
-      this.trigger("noPlayableTracks", bufferType);
+      this.trigger("noPlayableTrack", {
+        trackType: bufferType,
+        period: { id: period.id, start: period.start, end: period.end },
+      });
     } else if (
       firstPlayableAdaptation === undefined &&
       bufferType === "video" &&
@@ -546,14 +549,28 @@ export default class TracksStore extends EventEmitter<ITracksStoreEvents> {
     ) {
       // Video is not playable but audio may be playable, let's continue the playback.
       log.warn(`TS: No playable video, continuing with audio only`);
-      this.trigger("noPlayableTracks", bufferType);
+      this.trigger("noPlayableTrack", {
+        trackType: bufferType,
+        period: {
+          id: period.id,
+          start: period.start,
+          end: period.end,
+        },
+      });
     } else if (firstPlayableAdaptation === undefined) {
       const noRepErr = new MediaError(
         "NO_PLAYABLE_REPRESENTATION",
         `No ${bufferType} Representation can be played`,
         { tracks: undefined },
       );
-      this.trigger("noPlayableTracks", bufferType);
+      this.trigger("noPlayableTrack", {
+        trackType: bufferType,
+        period: {
+          id: period.id,
+          start: period.start,
+          end: period.end,
+        },
+      });
       this.trigger("error", noRepErr);
       this.dispose();
       return;
@@ -1760,6 +1777,16 @@ interface ITracksStoreEvents {
   trackUpdate: ITrackUpdateEventPayload;
   error: unknown;
   warning: IPlayerError;
+  noPlayableTrack: INoPlayableTrack;
+}
+
+interface INoPlayableTrack {
+  trackType: ITrackType;
+  period: {
+    id: string;
+    start: number;
+    end: number | undefined;
+  };
 }
 
 export interface IAudioRepresentationsLockSettings {

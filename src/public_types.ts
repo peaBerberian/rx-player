@@ -1226,6 +1226,15 @@ export interface ITrackUpdateEventPayload {
   /* eslint-enable @typescript-eslint/no-redundant-type-constituents */
 }
 
+export interface INoPlayableTrackEventPayload {
+  trackType: ITrackType;
+  period: {
+    id: string;
+    start: number;
+    end: number | undefined;
+  };
+}
+
 export interface IRepresentationListUpdateContext {
   period: IPeriod;
   trackType: ITrackType;
