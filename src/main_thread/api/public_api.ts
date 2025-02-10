@@ -62,6 +62,7 @@ import {
   getMinimumSafePosition,
   ManifestMetadataFormat,
   createRepresentationFilterFromFnString,
+  getPeriodForTime,
 } from "../../manifest";
 import type { IWorkerMessage } from "../../multithread_types";
 import { MainThreadMessageType, WorkerMessageType } from "../../multithread_types";
@@ -101,7 +102,11 @@ import type {
   ITrackType,
   IModeInformation,
   IWorkerSettings,
+  INoPlayableTrackEventPayload,
+  IThumbnailTrackInfo,
+  IThumbnailRenderingOptions,
 } from "../../public_types";
+import type { IThumbnailResponse } from "../../transports";
 import arrayFind from "../../utils/array_find";
 import arrayIncludes from "../../utils/array_includes";
 import assert, { assertUnreachable } from "../../utils/assert";
@@ -123,6 +128,7 @@ import {
   getKeySystemConfiguration,
 } from "../decrypt";
 import type { ContentInitializer } from "../init";
+import renderThumbnail from "../render_thumbnail";
 import type { IMediaElementTracksStore, ITSPeriodObject } from "../tracks_store";
 import TracksStore from "../tracks_store";
 import type { IParsedLoadVideoOptions, IParsedStartAtOption } from "./option_utils";
@@ -384,14 +390,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
   }
 
   /**
-   * Function passed from the ContentInitializer that return segment sinks metrics.
-   * This is used for monitor and debugging.
-   */
-  private _priv_segmentSinkMetricsCallback:
-    | null
-    | (() => Promise<ISegmentSinkMetrics | undefined>);
-
-  /**
    * @constructor
    * @param {Object} options
    */
@@ -466,8 +464,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     this._priv_lastAutoPlay = false;
 
     this._priv_worker = null;
-
-    this._priv_segmentSinkMetricsCallback = null;
 
     const onVolumeChange = () => {
       this.trigger("volumeChange", {
@@ -759,6 +755,75 @@ class Player extends EventEmitter<IPublicAPIEvent> {
   }
 
   /**
+   * Returns either an array decribing the various thumbnail tracks that can be
+   * encountered at the given time, or `null` if no thumbnail track is available
+   * at that time.
+   * @param {Object} arg
+   * @param {number|undefined} arg.time - The position to check for thumbnail
+   * tracks, in seconds.
+   * @param {string|undefined} arg.periodId
+   * @returns {Array.<Object>|null}
+   */
+  public getAvailableThumbnailTracks({
+    time,
+    periodId,
+  }: {
+    time?: number | undefined;
+    periodId?: string | undefined;
+  }): IThumbnailTrackInfo[] {
+    if (this._priv_contentInfos === null || this._priv_contentInfos.manifest === null) {
+      return [];
+    }
+    const { manifest } = this._priv_contentInfos;
+    let period;
+    if (time !== undefined) {
+      period = getPeriodForTime(this._priv_contentInfos.manifest, time);
+      if (period === undefined || period.thumbnailTracks.length === 0) {
+        return [];
+      }
+    } else if (periodId !== undefined) {
+      period = arrayFind(manifest.periods, (p) => p.id === periodId);
+      if (period === undefined) {
+        log.error("API: getAvailableThumbnailTracks: periodId not found");
+        return [];
+      }
+    } else {
+      const { currentPeriod } = this._priv_contentInfos;
+      if (currentPeriod === null) {
+        return [];
+      }
+      period = currentPeriod;
+    }
+    return period.thumbnailTracks.map((t) => {
+      return {
+        id: t.id,
+        width: Math.floor(t.width / t.horizontalTiles),
+        height: Math.floor(t.height / t.verticalTiles),
+        mimeType: t.mimeType,
+      };
+    });
+  }
+
+  /**
+   * Render inside the given `container` the thumbnail corresponding to the
+   * given time.
+   *
+   * If no thumbnail is available at that time or if the RxPlayer does not succeed
+   * to load or render it, reject the corresponding Promise and remove the
+   * potential previous thumbnail from the container.
+   *
+   * If a new `renderThumbnail` call is made with the same `container` before it
+   * had time to finish, the Promise is also rejected but the previous thumbnail
+   * potentially found in the container is untouched.
+   *
+   * @param {Object|undefined} options
+   * @returns {Promise}
+   */
+  public async renderThumbnail(options: IThumbnailRenderingOptions): Promise<void> {
+    return renderThumbnail(this._priv_contentInfos, options);
+  }
+
+  /**
    * From given options, initialize content playback.
    * @param {Object} options
    */
@@ -786,6 +851,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       __priv_manifestUpdateUrl,
       __priv_patchLastSegmentInSidx,
       url,
+      onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable,
     } = options;
 
     // Perform multiple checks on the given options
@@ -1029,6 +1096,14 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       tracksStore: null,
       mediaElementTracksStore,
       useWorker,
+      onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable,
+      segmentSinkMetricsCallback: null,
+      fetchThumbnailDataCallback: null,
+      thumbnailRequestsInfo: {
+        pendingRequests: new Map(),
+        lastResponse: null,
+      },
     };
 
     // Bind events
@@ -1047,7 +1122,9 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       if (contentInfos.tracksStore !== null) {
         contentInfos.tracksStore.resetPeriodObjects();
       }
-      this._priv_segmentSinkMetricsCallback = null;
+      if (this._priv_contentInfos !== null) {
+        this._priv_contentInfos.segmentSinkMetricsCallback = null;
+      }
       this._priv_lastAutoPlay = payload.autoPlay;
     });
     initializer.addEventListener("inbandEvents", (inbandEvents) =>
@@ -1091,7 +1168,10 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       this._priv_onDecipherabilityUpdate(contentInfos, updates),
     );
     initializer.addEventListener("loaded", (evt) => {
-      this._priv_segmentSinkMetricsCallback = evt.getSegmentSinkMetrics;
+      if (this._priv_contentInfos !== null) {
+        this._priv_contentInfos.segmentSinkMetricsCallback = evt.getSegmentSinkMetrics;
+        this._priv_contentInfos.fetchThumbnailDataCallback = evt.getThumbnailData;
+      }
     });
 
     // Now, that most events are linked, prepare the next content.
@@ -2451,11 +2531,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
    * @returns
    */
   async __priv_getSegmentSinkMetrics(): Promise<undefined | ISegmentSinkMetrics> {
-    if (this._priv_segmentSinkMetricsCallback === null) {
-      return undefined;
-    } else {
-      return this._priv_segmentSinkMetricsCallback();
-    }
+    return this._priv_contentInfos?.segmentSinkMetricsCallback?.();
   }
 
   /**
@@ -2523,7 +2599,6 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     this._priv_contentInfos?.tracksStore?.dispose();
     this._priv_contentInfos?.mediaElementTracksStore?.dispose();
     this._priv_contentInfos = null;
-    this._priv_segmentSinkMetricsCallback = null;
 
     this._priv_contentEventsMemory = {};
 
@@ -2577,6 +2652,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const tracksStore = new TracksStore({
       preferTrickModeTracks: this._priv_preferTrickModeTracks,
       defaultAudioTrackSwitchingMode: contentInfos.defaultAudioTrackSwitchingMode,
+      onAudioTracksNotPlayable: contentInfos.onAudioTracksNotPlayable,
+      onVideoTracksNotPlayable: contentInfos.onVideoTracksNotPlayable,
     });
     contentInfos.tracksStore = tracksStore;
     tracksStore.addEventListener("newAvailablePeriods", (p) => {
@@ -2596,14 +2673,18 @@ class Player extends EventEmitter<IPublicAPIEvent> {
         this._priv_onAvailableTracksMayHaveChanged(e.trackType);
       }
     });
-    contentInfos.tracksStore.addEventListener("warning", (err) => {
+    tracksStore.addEventListener("warning", (err) => {
       this.trigger("warning", err);
     });
-    contentInfos.tracksStore.addEventListener("error", (err) => {
+    tracksStore.addEventListener("error", (err) => {
       this._priv_onFatalError(err, contentInfos);
     });
 
-    contentInfos.tracksStore.onManifestUpdate(manifest);
+    tracksStore.addEventListener("noPlayableTrack", (trackType) => {
+      this.trigger("noPlayableTrack", trackType);
+    });
+
+    tracksStore.onManifestUpdate(manifest);
   }
 
   /**
@@ -3362,10 +3443,11 @@ interface IPublicAPIEvent {
   streamEvent: IStreamEvent;
   streamEventSkip: IStreamEvent;
   inbandEvents: IInbandEvent[];
+  noPlayableTrack: INoPlayableTrackEventPayload;
 }
 
 /** State linked to a particular contents loaded by the public API. */
-interface IPublicApiContentInfos {
+export interface IPublicApiContentInfos {
   /**
    * Unique identifier for this `IPublicApiContentInfos` object.
    * Allows to identify and thus compare this `contentInfos` object with another
@@ -3427,6 +3509,64 @@ interface IPublicApiContentInfos {
    * content.
    */
   useWorker: boolean;
+  /**
+   * Specifies the behavior when all audio tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without audio.
+   * - If set to `"error"`, an error will be thrown to indicate that the audio tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onAudioTracksNotPlayable: "continue" | "error";
+
+  /**
+   * Specifies the behavior when all video tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without video.
+   * - If set to `"error"`, an error will be thrown to indicate that the video tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onVideoTracksNotPlayable: "continue" | "error";
+  /**
+   * Function passed from the ContentInitializer that return segment sinks metrics.
+   * This is used for monitor and debugging.
+   */
+  segmentSinkMetricsCallback: null | (() => Promise<ISegmentSinkMetrics | undefined>);
+  /**
+   * Function allowing to retrieve thumbnails from a content.
+   */
+  fetchThumbnailDataCallback:
+    | null
+    | ((
+        periodId: string,
+        thumbnailTrackId: string,
+        time: number,
+      ) => Promise<IThumbnailResponse>);
+  /** Metadata related to thumbnail rendering for the current content. */
+  thumbnailRequestsInfo: {
+    /**
+     * Thumbnail requests that are still pending, identified by the thumbnail
+     * container.
+     * The value allows to cancel that task.
+     */
+    pendingRequests: Map<HTMLElement, TaskCanceller>;
+    /**
+     * Metadata about the last requested thumbnails.
+     *
+     * This is an optimization to avoid an unnecessary request and round-trip to
+     * the core code as many times thumbnail previews asked by applications are
+     * really close to the last asked one, often in the same thumbnail resource.
+     */
+    lastResponse: {
+      /** Actual thumbnail data response from core RxPlayer code. */
+      response: IThumbnailResponse;
+      /** The identifier for the Period for which that request was made. */
+      periodId: string;
+      /** The identifier for the thumbnail track for which that request was made. */
+      thumbnailTrackId: string;
+    } | null;
+  };
 }
 
 export default Player;

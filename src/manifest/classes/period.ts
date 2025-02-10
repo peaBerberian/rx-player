@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 import { MediaError } from "../../errors";
-import type { IManifestStreamEvent, IParsedPeriod } from "../../parsers/manifest";
+import type {
+  IManifestStreamEvent,
+  IParsedAdaptations,
+  ICdnMetadata,
+  IParsedPeriod,
+} from "../../parsers/manifest";
 import type { ITrackType, IRepresentationFilter } from "../../public_types";
 import arrayFind from "../../utils/array_find";
 import isNullOrUndefined from "../../utils/is_null_or_undefined";
@@ -22,6 +27,7 @@ import type { IAdaptationMetadata, IPeriodMetadata } from "../types";
 import { getAdaptations, getSupportedAdaptations, periodContainsTime } from "../utils";
 import Adaptation from "./adaptation";
 import type CodecSupportCache from "./codec_support_cache";
+import type { IRepresentationIndex } from "./representation_index";
 
 /** Structure listing every `Adaptation` in a Period. */
 export type IManifestAdaptations = Partial<Record<ITrackType, Adaptation[]>>;
@@ -57,75 +63,49 @@ export default class Period implements IPeriodMetadata {
   public streamEvents: IManifestStreamEvent[];
 
   /**
+   * If set to an object, this Period has thumbnail tracks.
+   */
+  public thumbnailTracks: IThumbnailTrack[];
+
+  /**
    * @constructor
    * @param {Object} args
-   * @param {Array.<Object>} unsupportedAdaptations - Array on which
-   * `Adaptation`s objects which have no supported `Representation` will be
-   * pushed.
-   * This array might be useful for minor error reporting.
    * @param {function|undefined} [representationFilter]
    */
   constructor(
     args: IParsedPeriod,
-    unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
-
     representationFilter?: IRepresentationFilter | undefined,
   ) {
     this.id = args.id;
-    this.adaptations = (
-      Object.keys(args.adaptations) as ITrackType[]
-    ).reduce<IManifestAdaptations>((acc, type) => {
-      const adaptationsForType = args.adaptations[type];
-      if (isNullOrUndefined(adaptationsForType)) {
-        return acc;
-      }
-      const filteredAdaptations = adaptationsForType
-        .map((adaptation): Adaptation => {
-          const newAdaptation = new Adaptation(adaptation, cachedCodecSupport, {
-            representationFilter,
-          });
-          if (
-            newAdaptation.representations.length > 0 &&
-            newAdaptation.supportStatus.hasSupportedCodec === false
-          ) {
-            unsupportedAdaptations.push(newAdaptation);
-          }
-          return newAdaptation;
-        })
-        .filter(
-          (adaptation): adaptation is Adaptation => adaptation.representations.length > 0,
-        );
-      if (
-        filteredAdaptations.every(
-          (adaptation) => adaptation.supportStatus.hasSupportedCodec === false,
-        ) &&
-        adaptationsForType.length > 0 &&
-        (type === "video" || type === "audio")
-      ) {
-        throw new MediaError(
-          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + type + " adaptations",
-          { tracks: undefined },
-        );
-      }
 
-      if (filteredAdaptations.length > 0) {
-        acc[type] = filteredAdaptations;
-      }
-      return acc;
-    }, {});
+    this.adaptations = this.createAdaptationsObject(
+      args.adaptations,
+      cachedCodecSupport,
+      representationFilter,
+    );
 
-    if (
-      !Array.isArray(this.adaptations.video) &&
-      !Array.isArray(this.adaptations.audio)
-    ) {
+    const hasAudio =
+      this.adaptations.audio !== undefined && this.adaptations.audio.length > 0;
+    const hasVideo =
+      this.adaptations.video !== undefined && this.adaptations.video.length > 0;
+    if (!hasAudio && !hasVideo) {
       throw new MediaError(
         "MANIFEST_PARSE_ERROR",
-        "No supported audio and video tracks.",
+        "The manifest has no video nor audio tracks.",
       );
     }
 
+    this.thumbnailTracks = args.thumbnailTracks.map((thumbnailTrack) => ({
+      id: thumbnailTrack.id,
+      mimeType: thumbnailTrack.mimeType,
+      index: thumbnailTrack.index,
+      cdnMetadata: thumbnailTrack.cdnMetadata,
+      height: thumbnailTrack.height,
+      width: thumbnailTrack.width,
+      horizontalTiles: thumbnailTrack.horizontalTiles,
+      verticalTiles: thumbnailTrack.verticalTiles,
+    }));
     this.duration = args.duration;
     this.start = args.start;
 
@@ -133,6 +113,30 @@ export default class Period implements IPeriodMetadata {
       this.end = this.start + this.duration;
     }
     this.streamEvents = args.streamEvents === undefined ? [] : args.streamEvents;
+  }
+
+  createAdaptationsObject(
+    adaptations: IParsedAdaptations,
+    cachedCodecSupport: CodecSupportCache,
+    representationFilter: IRepresentationFilter | undefined,
+  ): Partial<Record<ITrackType, Adaptation[]>> {
+    const manifestAdaptations: IManifestAdaptations = {};
+    for (const [type, adaptationsForType] of Object.entries(adaptations)) {
+      if (isNullOrUndefined(adaptationsForType)) {
+        continue;
+      }
+      manifestAdaptations[type as ITrackType] = adaptationsForType
+        .map((adaptation): Adaptation => {
+          const newAdaptation = new Adaptation(adaptation, cachedCodecSupport, {
+            representationFilter,
+          });
+          return newAdaptation;
+        })
+        .filter(
+          (adaptation): adaptation is Adaptation => adaptation.representations.length > 0,
+        );
+    }
+    return manifestAdaptations;
   }
 
   /**
@@ -152,6 +156,12 @@ export default class Period implements IPeriodMetadata {
     unsupportedAdaptations: Adaptation[],
     cachedCodecSupport: CodecSupportCache,
   ) {
+    const hasSupportedMedia: Record<ITrackType, boolean | undefined> = {
+      audio: undefined,
+      video: undefined,
+      text: undefined,
+    };
+
     (Object.keys(this.adaptations) as ITrackType[]).forEach((ttype) => {
       const adaptationsForType = this.adaptations[ttype];
       if (adaptationsForType === undefined) {
@@ -187,14 +197,9 @@ export default class Period implements IPeriodMetadata {
           hasSupportedAdaptations = true;
         }
       }
-      if ((ttype === "video" || ttype === "audio") && hasSupportedAdaptations === false) {
-        throw new MediaError(
-          "MANIFEST_INCOMPATIBLE_CODECS_ERROR",
-          "No supported " + ttype + " adaptations",
-          { tracks: undefined },
-        );
-      }
+      hasSupportedMedia[ttype] = hasSupportedAdaptations;
     }, {});
+    // this.checkIfStreamIsSupported(hasSupportedMedia);
   }
 
   /**
@@ -278,6 +283,50 @@ export default class Period implements IPeriodMetadata {
       id: this.id,
       streamEvents: this.streamEvents,
       adaptations,
+      thumbnailTracks: this.thumbnailTracks.map((thumbnailTrack) => ({
+        id: thumbnailTrack.id,
+        mimeType: thumbnailTrack.mimeType,
+        height: thumbnailTrack.height,
+        width: thumbnailTrack.width,
+        horizontalTiles: thumbnailTrack.horizontalTiles,
+        verticalTiles: thumbnailTrack.verticalTiles,
+      })),
     };
   }
+}
+
+/**
+ * Metadata on an image thumbnail track associated to a Period.
+ */
+export interface IThumbnailTrack {
+  /** Identifier for that thumbnail track. */
+  id: string;
+  /** interface allowing to obtain information on the actual thumbnails. */
+  index: IRepresentationIndex;
+  /** Mime-type for loaded thumbnails, allowing to know their format. */
+  mimeType: string;
+  /** CDN(s) on which the thumbnails may be loaded. */
+  cdnMetadata: ICdnMetadata[] | null;
+  /**
+   * A loaded thumbnail's height in pixels. Note that there can be multiple actual
+   * thumbnails per loaded thumbnail resource (see `horizontalTiles` and
+   * `verticalTiles` properties.
+   */
+  height: number;
+  /**
+   * A loaded thumbnail's width in pixels. Note that there can be multiple actual
+   * thumbnails per loaded thumbnail resource (see `horizontalTiles` and
+   * `verticalTiles` properties.
+   */
+  width: number;
+  /**
+   * Thumbnail tracks are usually grouped together. This is the number of
+   * images contained horizontally in a whole loaded thumbnail resource.
+   */
+  horizontalTiles: number;
+  /**
+   * Thumbnail tracks are usually grouped together. This is the number of
+   * images contained vertically in a whole loaded thumbnail resource.
+   */
+  verticalTiles: number;
 }

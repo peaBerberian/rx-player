@@ -149,7 +149,7 @@ export default function (options: ITransportOptions): ITransportPipelines {
       ): Promise<IManifestParserResult> {
         if (parsedResult.type === "done") {
           const warnings: IPlayerError[] = [];
-          const manifest = new Manifest(parsedResult.value, options, warnings);
+          const manifest = new Manifest(parsedResult.value, options);
           return Promise.resolve({ manifest, warnings });
         }
 
@@ -398,5 +398,14 @@ export default function (options: ITransportOptions): ITransportPipelines {
     audio: audioPipeline,
     video: videoPipeline,
     text: textTrackPipeline,
+    thumbnails: {
+      loadThumbnail: () =>
+        Promise.reject(
+          new Error("Thumbnail tracks aren't implemented with MetaPlaylist"),
+        ),
+      parseThumbnail: () => {
+        throw new Error("Thumbnail tracks aren't implemented with MetaPlaylist");
+      },
+    },
   };
 }

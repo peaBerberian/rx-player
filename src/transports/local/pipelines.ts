@@ -73,7 +73,7 @@ export default function getLocalManifestPipelines(
       }
       const parsed = parseLocalManifest(loadedManifest as ILocalManifest);
       const warnings: IPlayerError[] = [];
-      const manifest = new Manifest(parsed, transportOptions, warnings);
+      const manifest = new Manifest(parsed, transportOptions);
       return { manifest, url: undefined, warnings };
     },
   };
@@ -93,5 +93,14 @@ export default function getLocalManifestPipelines(
     audio: segmentPipeline,
     video: segmentPipeline,
     text: textTrackPipeline,
+    thumbnails: {
+      loadThumbnail: () =>
+        Promise.reject(
+          new Error("Thumbnail tracks aren't implemented with the local transport"),
+        ),
+      parseThumbnail: () => {
+        throw new Error("Thumbnail tracks aren't implemented with the local transport");
+      },
+    },
   };
 }

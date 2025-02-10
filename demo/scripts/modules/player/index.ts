@@ -40,6 +40,7 @@ import type {
   ITextTrack,
   IVideoRepresentation,
   IVideoTrack,
+  IThumbnailTrackInfo,
 } from "../../../../src/public_types";
 
 RxPlayer.addFeatures([
@@ -138,6 +139,8 @@ export interface IPlayerModuleState {
   livePosition: null | undefined | number;
   maximumPosition: null | undefined | number;
   minimumPosition: null | undefined | number;
+  onAudioTracksNotPlayable: "continue" | "error";
+  onVideoTracksNotPlayable: "continue" | "error";
   playbackRate: number;
   /** Try to play contents in "multithread" mode when possible. */
   relyOnWorker: boolean;
@@ -196,6 +199,8 @@ const PlayerModule = declareModule(
     livePosition: undefined,
     maximumPosition: undefined,
     minimumPosition: undefined,
+    onAudioTracksNotPlayable: "error",
+    onVideoTracksNotPlayable: "error",
     playbackRate: 1,
     relyOnWorker: false,
     useWorker: false,
@@ -289,6 +294,8 @@ const PlayerModule = declareModule(
             {
               mode: state.get("relyOnWorker") ? "auto" : "main",
               textTrackElement,
+              onAudioTracksNotPlayable: state.get("onAudioTracksNotPlayable"),
+              onVideoTracksNotPlayable: state.get("onVideoTracksNotPlayable"),
             },
             arg,
           ) as ILoadVideoOptions,
@@ -325,6 +332,22 @@ const PlayerModule = declareModule(
 
       unmute() {
         player.unMute();
+      },
+
+      getAvailableThumbnailTracks(time: number): IThumbnailTrackInfo[] {
+        return player.getAvailableThumbnailTracks({ time });
+      },
+
+      renderThumbnail(
+        container: HTMLElement,
+        time: number,
+        thumbnailTrackId: string,
+      ): Promise<void> {
+        return player.renderThumbnail({
+          container,
+          time,
+          thumbnailTrackId,
+        });
       },
 
       setDefaultVideoRepresentationSwitchingMode(

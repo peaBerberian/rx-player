@@ -1,5 +1,8 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
+import type { IManifestStreamEvent } from "../../../parsers/manifest";
+import type { IPeriodMetadata } from "../../types";
 import type IPeriod from "../period";
+import type { IManifestAdaptations, IThumbnailTrack } from "../period";
 import type {
   replacePeriods as IReplacePeriods,
   updatePeriods as IUpatePeriods,
@@ -16,6 +19,78 @@ const fakeUpdatePeriodInPlaceRes = {
   addedAdaptations: [],
 };
 
+class FakePeriod implements IPeriodMetadata {
+  public readonly id: string;
+  public adaptations: IManifestAdaptations;
+  public start: number;
+  public duration: number | undefined;
+  public end: number | undefined;
+  public streamEvents: IManifestStreamEvent[];
+  public thumbnailTracks: IThumbnailTrack[];
+
+  constructor({
+    id,
+    start,
+    end,
+    thumbnailTracks,
+  }: {
+    id: string;
+    start?: number | undefined;
+    end?: number | undefined;
+    thumbnailTracks?: IThumbnailTrack[] | undefined;
+  }) {
+    this.id = id ?? String(start);
+    this.start = start ?? 0;
+    this.end = end;
+    this.duration = end === undefined ? undefined : end - (start ?? 0);
+    this.streamEvents = [];
+    this.adaptations = {};
+    this.thumbnailTracks = thumbnailTracks ?? [];
+  }
+  createAdaptationsObject() {
+    return {};
+  }
+  getMediaSupport() {
+    return {
+      video: true,
+      audio: true,
+      text: true,
+    };
+  }
+  checkIfStreamIsSupported() {
+    // noop
+  }
+
+  refreshCodecSupport() {
+    // noop
+  }
+  getAdaptations() {
+    return [];
+  }
+  getAdaptationsForType() {
+    return [];
+  }
+  getAdaptation(): undefined {
+    return undefined;
+  }
+  getSupportedAdaptations() {
+    return [];
+  }
+  containsTime() {
+    return false;
+  }
+  getMetadataSnapshot() {
+    return {
+      start: this.start ?? 0,
+      end: this.end,
+      thumbnailTracks: [],
+      id: this.id ?? String(this.start),
+      streamEvents: [],
+      adaptations: {},
+    };
+  }
+}
+
 function generateFakePeriod({
   id,
   start,
@@ -25,41 +100,7 @@ function generateFakePeriod({
   start?: number | undefined;
   end?: number | undefined;
 }): IPeriod {
-  return {
-    id: id ?? String(start),
-    start: start ?? 0,
-    end,
-    duration: end === undefined ? undefined : end - (start ?? 0),
-    streamEvents: [],
-    adaptations: {},
-    refreshCodecSupport() {
-      // noop
-    },
-    getAdaptations() {
-      return [];
-    },
-    getAdaptationsForType() {
-      return [];
-    },
-    getAdaptation(): undefined {
-      return undefined;
-    },
-    getSupportedAdaptations() {
-      return [];
-    },
-    containsTime() {
-      return false;
-    },
-    getMetadataSnapshot() {
-      return {
-        start: start ?? 0,
-        end,
-        id: id ?? String(start),
-        streamEvents: [],
-        adaptations: {},
-      };
-    },
-  };
+  return new FakePeriod({ id, start, end, thumbnailTracks: [] }) as IPeriod;
 }
 
 describe("Manifest - replacePeriods", () => {
@@ -393,7 +434,7 @@ describe("Manifest - updatePeriods", () => {
       removedPeriods: [],
       updatedPeriods: [
         {
-          period: { id: "p2", start: 60, streamEvents: [] },
+          period: { id: "p2", start: 60, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],
@@ -434,7 +475,7 @@ describe("Manifest - updatePeriods", () => {
       removedPeriods: [],
       updatedPeriods: [
         {
-          period: { id: "p2", start: 60, streamEvents: [] },
+          period: { id: "p2", start: 60, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],
@@ -527,11 +568,11 @@ describe("Manifest - updatePeriods", () => {
       removedPeriods: [{ id: "p1.5", start: 69, end: 70 }],
       updatedPeriods: [
         {
-          period: { id: "p1", start: 60, end: 69, streamEvents: [] },
+          period: { id: "p1", start: 60, end: 69, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
         {
-          period: { id: "p2", start: 70, streamEvents: [] },
+          period: { id: "p2", start: 70, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],
@@ -805,11 +846,11 @@ describe("Manifest - updatePeriods", () => {
       removedPeriods: [],
       updatedPeriods: [
         {
-          period: { id: "p1", start: 60, end: 70, streamEvents: [] },
+          period: { id: "p1", start: 60, end: 70, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
         {
-          period: { id: "p2", start: 70, streamEvents: [] },
+          period: { id: "p2", start: 70, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],
@@ -865,11 +906,11 @@ describe("Manifest - updatePeriods", () => {
       removedPeriods: [{ id: "p2", start: 70, end: 80 }],
       updatedPeriods: [
         {
-          period: { id: "p1", start: 60, end: 70, streamEvents: [] },
+          period: { id: "p1", start: 60, end: 70, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
         {
-          period: { id: "p3", start: 80, streamEvents: [] },
+          period: { id: "p3", start: 80, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],
@@ -928,11 +969,11 @@ describe("Manifest - updatePeriods", () => {
       ],
       updatedPeriods: [
         {
-          period: { id: "p1", start: 60, end: 70, streamEvents: [] },
+          period: { id: "p1", start: 60, end: 70, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
         {
-          period: { id: "p3", start: 80, end: 90, streamEvents: [] },
+          period: { id: "p3", start: 80, end: 90, streamEvents: [], thumbnailTracks: [] },
           result: fakeUpdatePeriodInPlaceRes,
         },
       ],

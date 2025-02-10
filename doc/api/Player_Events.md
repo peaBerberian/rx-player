@@ -536,6 +536,25 @@ video track when in directfile mode to avoid that case (this is documented
 in the corresponding APIs).
 </div>
 
+### noPlayableTrack
+
+_payload type_: `Object`
+
+Emitted when no tracks of a particular type can be selected for a period.
+
+The payload is an object with the following properties:
+
+- `trackType` (`"audio" | "video" | "text"`): The track type that appear to have no
+  playable track.
+
+- `period`: (`Object`): The period in which the track is not playable. The Object has the
+  following properties:
+
+  - `id`: (`"string"`): The period id.
+  - `start`: (`"number"`): The period start time.
+
+  - `end`: (`"number" | undefined`): The period end time.
+
 ## Representation selection events
 
 This chapter describes events linked to the current audio, video or Representation /

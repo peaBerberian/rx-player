@@ -140,6 +140,26 @@ export interface ILoadVideoOptions {
   onCodecSwitch?: "continue" | "reload";
 
   /**
+   * Specifies the behavior when all audio tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without audio.
+   * - If set to `"error"`, an error will be thrown to indicate that the audio tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onAudioTracksNotPlayable?: "continue" | "error";
+
+  /**
+   * Specifies the behavior when all video tracks are not playable.
+   *
+   * - If set to `"continue"`, the player will proceed to play the content without video.
+   * - If set to `"error"`, an error will be thrown to indicate that the video tracks could not be played.
+   *
+   * Note: If neither the audio nor the video tracks are playable, an error will be thrown regardless of this setting.
+   */
+  onVideoTracksNotPlayable?: "continue" | "error";
+
+  /**
    * Whether we should check that an obtain segment is truncated and retry the
    * request if that's the case.
    */
@@ -1206,6 +1226,15 @@ export interface ITrackUpdateEventPayload {
   /* eslint-enable @typescript-eslint/no-redundant-type-constituents */
 }
 
+export interface INoPlayableTrackEventPayload {
+  trackType: ITrackType;
+  period: {
+    id: string;
+    start: number;
+    end: number | undefined;
+  };
+}
+
 export interface IRepresentationListUpdateContext {
   period: IPeriod;
   trackType: ITrackType;
@@ -1328,4 +1357,66 @@ export interface ITextTrackSetting {
 export interface IModeInformation {
   isDirectFile: boolean;
   useWorker: boolean;
+}
+
+/** Information returned by the `getAvailableThumbnailsTracks` method. */
+export interface IThumbnailTrackInfo {
+  /** Identifier identifying a particular thumbnail track. */
+  id: string;
+  /**
+   * Width in pixels of the individual thumbnails available in that
+   * thumbnail track.
+   */
+  width: number | undefined;
+  /**
+   * Height in pixels of the individual thumbnails available in that
+   * thumbnail track.
+   */
+  height: number | undefined;
+  /**
+   * Expected mime-type of the images in that thumbnail track (e.g.
+   * `image/jpeg` or `image/png`.
+   */
+  mimeType: string | undefined;
+}
+
+/**
+ * Options that can be provided to the `renderThumbnail` method
+ */
+export interface IThumbnailRenderingOptions {
+  /**
+   * HTMLElement inside which the thumbnail should be displayed.
+   *
+   * The resulting thumbnail will fill that container if the thumbnail loading
+   * and rendering operations succeeds.
+   *
+   * If there was already a thumbnail rendering request on that container, the
+   * previous operation is cancelled.
+   */
+  container: HTMLElement;
+  /** Position, in seconds, for which you want to provide an image thumbnail. */
+  time: number;
+  /**
+   * If set to `true`, we'll keep the potential previous thumbnail found inside
+   * the container if the current `renderThumbnail` call fail on an error.
+   * We'll still replace it if the new `renderThumbnail` call succeeds (with the
+   * new thumbnail).
+   *
+   * If set to `false`, to `undefined`, or not set, the previous thumbnail
+   * potentially found inside the container will also be removed if the new
+   * new `renderThumbnail` call fails.
+   *
+   * The default behavior (equivalent to `false`) is generally more expected, as
+   * you usually don't want to provide an unrelated preview thumbnail for a
+   * completely different time and prefer to display no thumbnail at all.
+   */
+  keepPreviousThumbnailOnError?: boolean | undefined;
+  /**
+   * If set, specify from which thumbnail track you want to display the
+   * thumbnail from. That identifier can be obtained from the
+   * `getThumbnailMetadata` call (the `id` property).
+   *
+   * This is mainly useful when encountering multiple thumbnail track qualities.
+   */
+  thumbnailTrackId?: string | undefined;
 }
