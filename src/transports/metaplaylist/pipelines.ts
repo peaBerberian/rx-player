@@ -149,7 +149,7 @@ export default function (options: ITransportOptions): ITransportPipelines {
       ): Promise<IManifestParserResult> {
         if (parsedResult.type === "done") {
           const warnings: IPlayerError[] = [];
-          const manifest = new Manifest(parsedResult.value, options, warnings);
+          const manifest = new Manifest(parsedResult.value, options);
           return Promise.resolve({ manifest, warnings });
         }
 
