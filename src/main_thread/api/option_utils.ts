@@ -488,8 +488,7 @@ function parseLoadVideoOptions(options: ILoadVideoOptions): IParsedLoadVideoOpti
     url,
     cmcd: options.cmcd,
     experimentalOptions: {
-      enableRepresentationAvoidance:
-        options.experimentalOptions?.enableRepresentationAvoidance === true,
+      enableRepresentationAvoidance: true,
     },
   };
 }
