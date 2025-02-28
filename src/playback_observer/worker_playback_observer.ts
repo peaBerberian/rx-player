@@ -49,6 +49,8 @@ export interface IWorkerPlaybackObservation {
    *  to be buffered at this time.
    */
   canStream: boolean;
+  /** If `true` the content is loaded until its maximum position. */
+  fullyLoaded: boolean;
 }
 
 /** Pause-related information linked to an emitted Playback observation. */
