@@ -154,7 +154,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   constructor(settings: IInitializeArguments) {
     super();
     this._initSettings = settings;
-    this._initCanceller = new TaskCanceller();
+    this._initCanceller = new TaskCanceller("Init");
     this._manifest = null;
     this._decryptionCapabilities = { status: "uninitialized", value: null };
     const urls = settings.url === undefined ? undefined : [settings.url];
@@ -346,7 +346,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
           }
           stopListeningToDrmUpdates();
 
-          const mediaSourceCanceller = new TaskCanceller();
+          const mediaSourceCanceller = new TaskCanceller("Init MS");
           mediaSourceCanceller.linkToSignal(initCanceller.signal);
           createMediaSource(mediaElement, mediaSourceCanceller.signal)
             .then((mediaSource) => {
@@ -523,7 +523,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
         return;
       }
 
-      const newCanceller = new TaskCanceller();
+      const newCanceller = new TaskCanceller("Init MS");
       newCanceller.linkToSignal(initCanceller.signal);
       createMediaSource(args.mediaElement, newCanceller.signal)
         .then((newMediaSource) => {

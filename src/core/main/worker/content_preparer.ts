@@ -92,9 +92,9 @@ export default class ContentPreparer {
    */
   constructor({ hasVideo }: { hasVideo: boolean }) {
     this._currentContent = null;
-    this._currentMediaSourceCanceller = new TaskCanceller();
+    this._currentMediaSourceCanceller = new TaskCanceller("CP MS");
     this._hasVideo = hasVideo;
-    const contentCanceller = new TaskCanceller();
+    const contentCanceller = new TaskCanceller("CP");
     this._contentCanceller = contentCanceller;
   }
 
@@ -116,7 +116,7 @@ export default class ContentPreparer {
     return new Promise((res, rej) => {
       this.disposeCurrentContent();
       const contentCanceller = this._contentCanceller;
-      const currentMediaSourceCanceller = new TaskCanceller();
+      const currentMediaSourceCanceller = new TaskCanceller("CP MS");
       this._currentMediaSourceCanceller = currentMediaSourceCanceller;
 
       currentMediaSourceCanceller.linkToSignal(contentCanceller.signal);
@@ -335,7 +335,7 @@ export default class ContentPreparer {
       return Promise.reject(new Error("CP: No content anymore"));
     }
     this._currentContent.trackChoiceSetter.reset();
-    this._currentMediaSourceCanceller = new TaskCanceller();
+    this._currentMediaSourceCanceller = new TaskCanceller("CP MS");
 
     const [mediaSourceInterface, segmentSinksStore, workerTextSender] =
       createMediaSourceInterfaceAndSegmentSinksStore(
@@ -378,7 +378,7 @@ export default class ContentPreparer {
    */
   public disposeCurrentContent() {
     this._contentCanceller.cancel();
-    this._contentCanceller = new TaskCanceller();
+    this._contentCanceller = new TaskCanceller("CP");
   }
 }
 

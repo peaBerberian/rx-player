@@ -504,7 +504,7 @@ function loadPreparedContent(
 ): IContentHandle {
   log.debug("WP: Loading prepared content");
 
-  const contentCanceller = new TaskCanceller();
+  const contentCanceller = new TaskCanceller("Start Content Worker");
 
   let currentLoadCanceller: TaskCanceller | null = null;
 
@@ -520,7 +520,7 @@ function loadPreparedContent(
 
   function startLoadingAt(startTime: number): void {
     currentLoadCanceller?.cancel();
-    currentLoadCanceller = new TaskCanceller();
+    currentLoadCanceller = new TaskCanceller("(Re)Loading Content Worker");
     currentLoadCanceller.linkToSignal(contentCanceller.signal);
 
     /**
