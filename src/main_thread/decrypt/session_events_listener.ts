@@ -59,13 +59,13 @@ export default function SessionEventsListener(
 
   if (!isNullOrUndefined(session.closed)) {
     session.closed
-      .then(() => manualCanceller.cancel())
+      .then(() => manualCanceller.cancel("MKS closed"))
       .catch((err) => {
         // Should never happen
         if (cancelSignal.isCancelled()) {
           return;
         }
-        manualCanceller.cancel();
+        manualCanceller.cancel("MKS closed err");
         callbacks.onError(err);
       });
   }
@@ -73,7 +73,7 @@ export default function SessionEventsListener(
   onKeyError(
     session,
     (evt) => {
-      manualCanceller.cancel();
+      manualCanceller.cancel("MKS keyerr");
       callbacks.onError(
         new EncryptedMediaError("KEY_ERROR", (evt as Event).type, {
           keyStatuses: undefined,
@@ -98,7 +98,7 @@ export default function SessionEventsListener(
         ) {
           return;
         }
-        manualCanceller.cancel();
+        manualCanceller.cancel("MKS keystatuseschange handling failure");
         callbacks.onError(error);
       }
     },
@@ -136,7 +136,7 @@ export default function SessionEventsListener(
                 mediaKeySystemAccess,
               );
             } catch (err) {
-              manualCanceller.cancel();
+              manualCanceller.cancel("MKS update failure");
               callbacks.onError(err);
             }
           }
@@ -145,7 +145,7 @@ export default function SessionEventsListener(
           if (manualCanceller.isUsed()) {
             return;
           }
-          manualCanceller.cancel();
+          manualCanceller.cancel("MKS license getting failure");
           const formattedError = formatGetLicenseError(err, mediaKeySystemAccess);
 
           if (!isNullOrUndefined(err)) {

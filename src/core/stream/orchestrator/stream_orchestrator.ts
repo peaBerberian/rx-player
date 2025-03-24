@@ -186,7 +186,7 @@ export default function StreamOrchestrator(
           periodList.removeElement(period);
           callbacks.periodStreamCleared({ type: bufferType, manifest, period });
         }
-        currentCanceller.cancel();
+        currentCanceller.cancel("SO oob");
         currentCanceller = new TaskCanceller("SO Streams " + bufferType);
         currentCanceller.linkToSignal(orchestratorCancelSignal);
 
@@ -212,7 +212,7 @@ export default function StreamOrchestrator(
           if (orchestratorCancelSignal.isCancelled()) {
             return;
           }
-          currentCanceller.cancel();
+          currentCanceller.cancel("SO deciph update");
           callbacks.error(err);
         });
       },
@@ -254,7 +254,7 @@ export default function StreamOrchestrator(
           callbacks.periodStreamCleared(payload);
         },
         error(err: unknown): void {
-          currentCanceller.cancel();
+          currentCanceller.cancel("SO err");
           callbacks.error(err);
         },
       };
@@ -350,7 +350,7 @@ export default function StreamOrchestrator(
         callbacks.periodStreamCleared({ type: bufferType, manifest, period });
       }
 
-      currentCanceller.cancel();
+      currentCanceller.cancel("So deciph upd");
       currentCanceller = new TaskCanceller("SO Streams " + bufferType);
       currentCanceller.linkToSignal(orchestratorCancelSignal);
 
@@ -484,7 +484,7 @@ export default function StreamOrchestrator(
             manifest,
             period: basePeriod,
           });
-          currentStreamCanceller.cancel();
+          currentStreamCanceller.cancel("SO pos above");
         }
       },
       { clearSignal: cancelSignal, includeLastObservation: true },
@@ -523,17 +523,17 @@ export default function StreamOrchestrator(
             manifest,
             period: nextStreamInfo.period,
           });
-          nextStreamInfo.canceller.cancel();
+          nextStreamInfo.canceller.cancel("SO prev active");
           nextStreamInfo = null;
         }
         consecutivePeriodStreamCb.streamStatusUpdate(value);
       },
       error(err: unknown): void {
         if (nextStreamInfo !== null) {
-          nextStreamInfo.canceller.cancel();
+          nextStreamInfo.canceller.cancel("SO err prev");
           nextStreamInfo = null;
         }
-        currentStreamCanceller.cancel();
+        currentStreamCanceller.cancel("SO err curr");
         consecutivePeriodStreamCb.error(err);
       },
     };
@@ -561,7 +561,7 @@ export default function StreamOrchestrator(
           manifest,
           period: nextStreamInfo.period,
         });
-        nextStreamInfo.canceller.cancel();
+        nextStreamInfo.canceller.cancel("SO next recreat");
       }
       const nextStreamCanceller = new TaskCanceller("SO Next " + bufferType);
       nextStreamCanceller.linkToSignal(cancelSignal);
@@ -632,7 +632,7 @@ export default function StreamOrchestrator(
                   manifest,
                   period: nextStreamInfo.period,
                 });
-                nextStreamInfo.canceller.cancel();
+                nextStreamInfo.canceller.cancel("SO next Period changed");
                 nextStreamInfo = null;
               }
             }

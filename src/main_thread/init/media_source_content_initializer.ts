@@ -243,7 +243,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
    * `MediaSourceContentInitializer`.
    */
   public dispose(): void {
-    this._initCanceller.cancel();
+    this._initCanceller.cancel("Init dispose");
   }
 
   /**
@@ -254,7 +254,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     if (this._initCanceller.isUsed()) {
       return;
     }
-    this._initCanceller.cancel();
+    this._initCanceller.cancel("Init fatal err");
     this.trigger("error", err);
   }
 
@@ -514,7 +514,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   ): IReloadMediaSourceCallback {
     const initCanceller = this._initCanceller;
     return (reloadOrder: { position: number; autoPlay: boolean }): void => {
-      currentCanceller.cancel();
+      currentCanceller.cancel("Init reload MS");
       if (initCanceller.isUsed()) {
         return;
       }

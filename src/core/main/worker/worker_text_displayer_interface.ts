@@ -97,7 +97,7 @@ export default class WorkerTextDisplayerInterface implements ITextDisplayerInter
   }
 
   private _resetCurrentQueue(): void {
-    const error = new CancellationError("WTDI Reset");
+    const error = new CancellationError("WTDI queue", "reset");
     this._queues.pushTextData.forEach((elt) => {
       elt.reject(error);
     });

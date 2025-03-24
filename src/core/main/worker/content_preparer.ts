@@ -330,7 +330,7 @@ export default class ContentPreparer {
    * @returns {Promise}
    */
   public reloadMediaSource(): Promise<void> {
-    this._currentMediaSourceCanceller.cancel();
+    this._currentMediaSourceCanceller.cancel("CP MS reload");
     if (this._currentContent === null) {
       return Promise.reject(new Error("CP: No content anymore"));
     }
@@ -377,7 +377,7 @@ export default class ContentPreparer {
    * stop linking it to this `ContentPreparer`.
    */
   public disposeCurrentContent() {
-    this._contentCanceller.cancel();
+    this._contentCanceller.cancel("CP dispose");
     this._contentCanceller = new TaskCanceller("CP");
   }
 }
