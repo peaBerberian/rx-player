@@ -685,7 +685,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
    */
   stop(): void {
     if (this._priv_contentInfos !== null) {
-      this._priv_contentInfos.currentContentCanceller.cancel("stop");
+      this._priv_contentInfos.currentContentCanceller.cancel("API stop");
     }
     this._priv_cleanUpCurrentContentState();
     if (this.state !== PLAYER_STATES.STOPPED) {
@@ -711,7 +711,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     }
 
     // free resources linked to the Player instance
-    this._destroyCanceller.cancel("destroy");
+    this._destroyCanceller.cancel("API destroy");
 
     this._priv_reloadingMetadata = {};
 
@@ -803,7 +803,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     features.createDebugElement(element, this, canceller.signal);
     return {
       dispose() {
-        canceller.cancel("dispose");
+        canceller.cancel("debug dispose");
       },
     };
   }
@@ -1267,8 +1267,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       lowLatencyMode,
     });
 
-    currentContentCanceller.signal.register(() => {
-      playbackObserver.stop();
+    currentContentCanceller.signal.register((err) => {
+      playbackObserver.stop(err.reason);
     });
 
     // Update the RxPlayer's state at the right events
@@ -1279,8 +1279,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       isDirectFile,
       currentContentCanceller.signal,
     );
-    currentContentCanceller.signal.register(() => {
-      initializer.dispose();
+    currentContentCanceller.signal.register((err) => {
+      initializer.dispose(err.reason);
     });
 
     /**

@@ -356,8 +356,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     } else {
       assert(!this._hasTextBufferFeature());
     }
-    this._initCanceller.signal.register(() => {
-      textDisplayer?.stop();
+    this._initCanceller.signal.register((err) => {
+      textDisplayer?.stop(err.reason);
     });
 
     /** Translate errors coming from the media element into RxPlayer errors. */
@@ -512,7 +512,9 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
           }
           if (this._currentContentInfo !== null) {
             if (this._currentContentInfo.mediaSourceInfo?.type === "main") {
-              this._currentContentInfo.mediaSourceInfo.mediaSource.dispose();
+              this._currentContentInfo.mediaSourceInfo.mediaSource.dispose(
+                "new AttachMediaSource message",
+              );
             }
             this._currentContentInfo.mediaSourceInfo = {
               type: "core",
@@ -692,7 +694,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
             if (sourceBuffer === undefined) {
               return;
             }
-            sourceBuffer.abort();
+            sourceBuffer.abort("MT worker msg abort SB");
           }
           break;
 
@@ -726,7 +728,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
             if (mediaSource?.id !== msgData.mediaSourceId) {
               return;
             }
-            mediaSource.interruptDurationSetting();
+            mediaSource.interruptDurationSetting("MT interrupt msg");
           }
           break;
 
@@ -768,7 +770,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
               return;
             }
             const { mediaSource } = this._currentContentInfo.mediaSourceInfo;
-            mediaSource.dispose();
+            mediaSource.dispose("DisposeMediaSource message");
           }
           break;
 
@@ -1169,7 +1171,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
               "Init: Received StopTextDisplayer message but no text displayer exists",
             );
           } else {
-            textDisplayer.stop();
+            textDisplayer.stop("stop text displayer msg");
           }
           break;
         }
@@ -1284,11 +1286,11 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     });
   }
 
-  public dispose(): void {
+  public dispose(reason: string | undefined): void {
     this._initCanceller.cancel("Init MT dispose");
     if (this._currentContentInfo !== null) {
       if (this._currentContentInfo.mediaSourceInfo?.type === "main") {
-        this._currentContentInfo.mediaSourceInfo.mediaSource.dispose();
+        this._currentContentInfo.mediaSourceInfo.mediaSource.dispose(reason);
       }
       this._currentContentInfo = null;
     }
@@ -1479,8 +1481,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
       { clearSignal: cancelSignal },
     );
 
-    cancelSignal.register(() => {
-      contentDecryptor.dispose();
+    cancelSignal.register((err) => {
+      contentDecryptor.dispose(err.reason);
     });
 
     return { statusRef: drmStatusRef, contentDecryptor };
@@ -1672,8 +1674,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     rebufferingController.addEventListener("warning", (err) =>
       this.trigger("warning", err),
     );
-    cancelSignal.register(() => {
-      rebufferingController.destroy();
+    cancelSignal.register((err) => {
+      rebufferingController.destroy(err.reason);
     });
     rebufferingController.start();
     this._currentContentInfo.rebufferingController = rebufferingController;
@@ -1700,8 +1702,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
             cancelSignal,
           );
           streamEventsEmitter.start();
-          cancelSignal.register(() => {
-            streamEventsEmitter.stop();
+          cancelSignal.register((err) => {
+            streamEventsEmitter.stop(err.reason);
           });
         }
       },
@@ -1920,7 +1922,9 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
               stopListening();
               const mediaSource = new MainMediaSourceInterface(mediaSourceId);
               if (this._currentContentInfo.mediaSourceInfo?.type === "main") {
-                this._currentContentInfo.mediaSourceInfo.mediaSource.dispose();
+                this._currentContentInfo.mediaSourceInfo.mediaSource.dispose(
+                  "Attaching new MediaSource",
+                );
               }
               this._currentContentInfo.mediaSourceInfo = {
                 type: "main",
@@ -1954,8 +1958,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
                 url = URL.createObjectURL(mediaSource.handle.value);
                 mediaElement.src = url;
               }
-              this._currentMediaSourceCanceller.signal.register(() => {
-                mediaSource.dispose();
+              this._currentMediaSourceCanceller.signal.register((err) => {
+                mediaSource.dispose(err.reason);
                 resetMediaElement(mediaElement, url);
               });
               mediaSourceStatus.setValue(MediaSourceInitializationStatus.Attached);

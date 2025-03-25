@@ -105,7 +105,7 @@ export default function initializeWorkerMain() {
         }
 
         if (!msg.value.hasVideo) {
-          contentPreparer.disposeCurrentContent();
+          contentPreparer.disposeCurrentContent("WM init msg");
           contentPreparer = new ContentPreparer({ hasVideo: msg.value.hasVideo });
         }
 
@@ -181,7 +181,7 @@ export default function initializeWorkerMain() {
         if (msg.contentId !== contentPreparer.getCurrentContent()?.contentId) {
           return;
         }
-        contentPreparer.disposeCurrentContent();
+        contentPreparer.disposeCurrentContent("StopContent message");
 
         currentContentHandle?.stop();
         currentContentHandle = null;

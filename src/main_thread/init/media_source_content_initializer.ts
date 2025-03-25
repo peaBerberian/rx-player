@@ -190,8 +190,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       }),
     );
     this._manifestFetcher.start();
-    this._initCanceller.signal.register(() => {
-      this._manifestFetcher.dispose();
+    this._initCanceller.signal.register((err) => {
+      this._manifestFetcher.dispose(err.reason);
     });
   }
 
@@ -241,9 +241,12 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   /**
    * Stop content and free all resources linked to this
    * `MediaSourceContentInitializer`.
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * cancellation. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public dispose(): void {
-    this._initCanceller.cancel("Init dispose");
+  public dispose(reason: string | undefined): void {
+    this._initCanceller.cancel(reason ?? "Init dispose");
   }
 
   /**
@@ -590,9 +593,9 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     if (textDisplayer !== null) {
       const sender = new MainThreadTextDisplayerInterface(textDisplayer);
       textDisplayerInterface = sender;
-      cancelSignal.register(() => {
-        sender.stop();
-        textDisplayer?.stop();
+      cancelSignal.register((err) => {
+        sender.stop(err.reason);
+        textDisplayer?.stop(err.reason);
       });
     }
 
@@ -603,8 +606,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       textDisplayerInterface,
     );
 
-    cancelSignal.register(() => {
-      segmentSinksStore.disposeAll();
+    cancelSignal.register((err) => {
+      segmentSinksStore.disposeAll(err.reason);
     });
 
     const { autoPlayResult, initialPlayPerformed } = performInitialSeekAndPlay(
@@ -652,8 +655,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
             cancelSignal,
           );
           streamEventsEmitter.start();
-          cancelSignal.register(() => {
-            streamEventsEmitter.stop();
+          cancelSignal.register((err) => {
+            streamEventsEmitter.stop(err.reason);
           });
         }
       },
@@ -1080,7 +1083,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     rebufferingController.addEventListener("warning", (err) =>
       this.trigger("warning", err),
     );
-    cancelSignal.register(() => rebufferingController.destroy());
+    cancelSignal.register((err) => rebufferingController.destroy(err.reason));
     rebufferingController.start();
     return rebufferingController;
   }

@@ -119,8 +119,8 @@ function createMediaSource(
     "FORCED_MEDIA_SOURCE" in mediaElement ? mediaElement.FORCED_MEDIA_SOURCE : undefined,
   );
   disableRemotePlaybackOnManagedMediaSource(mediaElement, unlinkSignal);
-  unlinkSignal.register(() => {
-    mediaSource.dispose();
+  unlinkSignal.register((err) => {
+    mediaSource.dispose(err.reason);
   });
   return mediaSource;
 }
