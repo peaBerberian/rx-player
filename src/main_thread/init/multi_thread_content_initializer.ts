@@ -150,8 +150,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
   constructor(settings: IInitializeArguments) {
     super();
     this._settings = settings;
-    this._initCanceller = new TaskCanceller("Init MT");
-    this._currentMediaSourceCanceller = new TaskCanceller("Init MT MS");
+    this._initCanceller = new TaskCanceller("Init MultiThread");
+    this._currentMediaSourceCanceller = new TaskCanceller("Init MultiThread MediaSource");
     this._currentMediaSourceCanceller.linkToSignal(this._initCanceller.signal);
     this._currentContentInfo = null;
     this._awaitingRequests = {
@@ -694,7 +694,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
             if (sourceBuffer === undefined) {
               return;
             }
-            sourceBuffer.abort("MT worker msg abort SB");
+            sourceBuffer.abort("received AbortSourceBuffer message");
           }
           break;
 
@@ -728,7 +728,9 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
             if (mediaSource?.id !== msgData.mediaSourceId) {
               return;
             }
-            mediaSource.interruptDurationSetting("MT interrupt msg");
+            mediaSource.interruptDurationSetting(
+              "received InterrupMediaSourceDurationUpdate message",
+            );
           }
           break;
 
@@ -1171,7 +1173,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
               "Init: Received StopTextDisplayer message but no text displayer exists",
             );
           } else {
-            textDisplayer.stop("stop text displayer msg");
+            textDisplayer.stop("received StopTextDisplayer message");
           }
           break;
         }
@@ -1287,7 +1289,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
   }
 
   public dispose(reason: string | undefined): void {
-    this._initCanceller.cancel("Init MT dispose");
+    this._initCanceller.cancel("Init MultiThread dispose");
     if (this._currentContentInfo !== null) {
       if (this._currentContentInfo.mediaSourceInfo?.type === "main") {
         this._currentContentInfo.mediaSourceInfo.mediaSource.dispose(reason);
@@ -1300,7 +1302,7 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     if (this._initCanceller.isUsed()) {
       return;
     }
-    this._initCanceller.cancel("Init MT dispose");
+    this._initCanceller.cancel("Init MultiThread dispose");
     this.trigger("error", err);
   }
 
@@ -1530,8 +1532,8 @@ export default class MultiThreadContentInitializer extends ContentInitializer {
     position: number,
     autoPlay: boolean,
   ) {
-    this._currentMediaSourceCanceller.cancel("Init MT MS R");
-    this._currentMediaSourceCanceller = new TaskCanceller("Init MT MS R");
+    this._currentMediaSourceCanceller.cancel("Init MultiThread MediaSource Reload");
+    this._currentMediaSourceCanceller = new TaskCanceller("Init MultiThread MediaSource");
     this._currentMediaSourceCanceller.linkToSignal(this._initCanceller.signal);
     mediaSourceStatus.setValue(MediaSourceInitializationStatus.AttachNow);
     this.trigger("reloadingMediaSource", { position, autoPlay });

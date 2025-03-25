@@ -146,7 +146,7 @@ export default class PlaybackObserver {
     this._mediaElement = mediaElement;
     this._withMediaSource = options.withMediaSource;
     this._lowLatencyMode = options.lowLatencyMode;
-    this._canceller = new TaskCanceller("PlaybackObserver");
+    this._canceller = new TaskCanceller("MediaElementPlaybackObserver");
     this._observationRef = this._createSharedReference();
     this._expectedSeekingPosition = null;
     this._pendingSeek = null;
@@ -177,7 +177,7 @@ export default class PlaybackObserver {
    * inspection.
    */
   public stop(reason: string | undefined) {
-    this._canceller.cancel(reason ?? "stop pbo");
+    this._canceller.cancel(reason ?? "MediaElementPlaybackObserver stop");
   }
 
   /**

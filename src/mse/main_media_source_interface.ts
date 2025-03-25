@@ -85,7 +85,7 @@ export default class MainMediaSourceInterface
     super();
     this.id = id;
     this.sourceBuffers = [];
-    this._canceller = new TaskCanceller("MSI Main");
+    this._canceller = new TaskCanceller("MainMediaSourceInterface");
 
     if (isNullOrUndefined(MediaSource_)) {
       throw new MediaError(
@@ -167,7 +167,9 @@ export default class MainMediaSourceInterface
   /** @see IMediaSourceInterface */
   public maintainEndOfStream() {
     if (this._endOfStreamCanceller === null) {
-      this._endOfStreamCanceller = new TaskCanceller("MSI EOS");
+      this._endOfStreamCanceller = new TaskCanceller(
+        "MainMediaSourceInterface EndOfStream",
+      );
       this._endOfStreamCanceller.linkToSignal(this._canceller.signal);
       log.debug("Init: end-of-stream order received.");
       maintainEndOfStream(this._mediaSource, this._endOfStreamCanceller.signal);
@@ -178,7 +180,7 @@ export default class MainMediaSourceInterface
   public stopEndOfStream() {
     if (this._endOfStreamCanceller !== null) {
       log.debug("Init: resume-stream order received.");
-      this._endOfStreamCanceller.cancel("MSI stop EOS");
+      this._endOfStreamCanceller.cancel("MediaSourceInterface stopEndOfStream");
       this._endOfStreamCanceller = null;
     }
   }
@@ -186,7 +188,7 @@ export default class MainMediaSourceInterface
   /** @see IMediaSourceInterface */
   public dispose(reason: string | undefined) {
     this.sourceBuffers.forEach((s) => s.dispose(reason));
-    this._canceller.cancel(reason ?? "MSI dispose");
+    this._canceller.cancel(reason ?? "MainMediaSourceInterface dispose");
     resetMediaSource(this._mediaSource);
   }
 }
@@ -231,7 +233,7 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
   constructor(sbType: SourceBufferType, codec: string, sourceBuffer: ISourceBuffer) {
     this.type = sbType;
     this.codec = codec;
-    this._canceller = new TaskCanceller("SBI Main");
+    this._canceller = new TaskCanceller("MainSourceBufferInterface " + sbType);
     this._sourceBuffer = sourceBuffer;
     this._operationQueue = [];
     this._currentOperations = [];
@@ -358,7 +360,10 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
    * inspection.
    */
   private _emptyCurrentQueue(reason: string | undefined): void {
-    const error = new CancellationError("SBI queue", reason);
+    const error = new CancellationError(
+      "MainSourceBufferInterface queue " + this.type,
+      reason,
+    );
     if (this._currentOperations.length > 0) {
       this._currentOperations.forEach((op) => {
         op.reject(error);
@@ -546,12 +551,12 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
     const sourceBuffer = this._sourceBuffer;
     const { codec, timestampOffset, appendWindow = [] } = params;
     if (codec !== undefined && codec !== this.codec) {
-      log.debug("SBI: updating codec", codec);
+      log.debug("SBI: updating codec", this.type, codec);
       const hasUpdatedSourceBufferType = tryToChangeSourceBufferType(sourceBuffer, codec);
       if (hasUpdatedSourceBufferType) {
         this.codec = codec;
       } else {
-        log.debug("SBI: could not update codec", codec, this.codec);
+        log.debug("SBI: could not update codec", this.type, codec, this.codec);
       }
     }
 
@@ -562,6 +567,7 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
       const newTimestampOffset = timestampOffset;
       log.debug(
         "SBI: updating timestampOffset",
+        this.type,
         codec,
         sourceBuffer.timestampOffset,
         newTimestampOffset,
@@ -571,26 +577,26 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
 
     if (appendWindow[0] === undefined) {
       if (sourceBuffer.appendWindowStart > 0) {
-        log.debug("SBI: re-setting `appendWindowStart` to `0`");
+        log.debug("SBI: re-setting `appendWindowStart` to `0`", this.type);
         sourceBuffer.appendWindowStart = 0;
       }
     } else if (appendWindow[0] !== sourceBuffer.appendWindowStart) {
       if (appendWindow[0] >= sourceBuffer.appendWindowEnd) {
         const newTmpEnd = appendWindow[0] + 1;
-        log.debug("SBI: pre-updating `appendWindowEnd`", newTmpEnd);
+        log.debug("SBI: pre-updating `appendWindowEnd`", newTmpEnd, this.type);
         sourceBuffer.appendWindowEnd = newTmpEnd;
       }
-      log.debug("SBI: setting `appendWindowStart`", appendWindow[0]);
+      log.debug("SBI: setting `appendWindowStart`", appendWindow[0], this.type);
       sourceBuffer.appendWindowStart = appendWindow[0];
     }
 
     if (appendWindow[1] === undefined) {
       if (sourceBuffer.appendWindowEnd !== Infinity) {
-        log.debug("SBI: re-setting `appendWindowEnd` to `Infinity`");
+        log.debug("SBI: re-setting `appendWindowEnd` to `Infinity`", this.type);
         sourceBuffer.appendWindowEnd = Infinity;
       }
     } else if (appendWindow[1] !== sourceBuffer.appendWindowEnd) {
-      log.debug("SBI: setting `appendWindowEnd`", appendWindow[1]);
+      log.debug("SBI: setting `appendWindowEnd`", appendWindow[1], this.type);
       sourceBuffer.appendWindowEnd = appendWindow[1];
     }
     log.debug("SBI: pushing segment", this.type);

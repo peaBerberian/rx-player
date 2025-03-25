@@ -349,7 +349,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
           }
           stopListeningToDrmUpdates();
 
-          const mediaSourceCanceller = new TaskCanceller("Init MS");
+          const mediaSourceCanceller = new TaskCanceller("Init MediaSource");
           mediaSourceCanceller.linkToSignal(initCanceller.signal);
           createMediaSource(mediaElement, mediaSourceCanceller.signal)
             .then((mediaSource) => {
@@ -517,7 +517,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   ): IReloadMediaSourceCallback {
     const initCanceller = this._initCanceller;
     return (reloadOrder: { position: number; autoPlay: boolean }): void => {
-      currentCanceller.cancel("Init reload MS");
+      currentCanceller.cancel("Init reloading MediaSource");
       if (initCanceller.isUsed()) {
         return;
       }
@@ -526,7 +526,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
         return;
       }
 
-      const newCanceller = new TaskCanceller("Init MS");
+      const newCanceller = new TaskCanceller("Init MediaSource");
       newCanceller.linkToSignal(initCanceller.signal);
       createMediaSource(args.mediaElement, newCanceller.signal)
         .then((newMediaSource) => {
