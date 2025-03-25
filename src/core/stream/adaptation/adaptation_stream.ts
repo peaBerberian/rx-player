@@ -324,10 +324,16 @@ export default function AdaptationStream(
         }
         if (estimate.urgent) {
           log.info("Stream: urgent Representation switch", adaptation.type);
-          return terminateCurrentStream.setValue({ urgent: true });
+          return terminateCurrentStream.setValue({
+            urgent: true,
+            reason: "Urgent Representation switch",
+          });
         } else {
           log.info("Stream: slow Representation switch", adaptation.type);
-          return terminateCurrentStream.setValue({ urgent: false });
+          return terminateCurrentStream.setValue({
+            urgent: false,
+            reason: "Non-urgent Representation switch",
+          });
         }
       },
       {

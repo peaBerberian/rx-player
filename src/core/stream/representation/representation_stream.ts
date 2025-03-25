@@ -282,7 +282,7 @@ export default function RepresentationStream<TSegmentDataType>(
       log.debug("Stream: Urgent switch, terminate now.", bufferType);
       segmentsToLoadRef.setValue({ initSegment: null, segmentQueue: [] });
       segmentsToLoadRef.finish();
-      canceller.cancel("RepresentationStream: termination urgent");
+      canceller.cancel(terminateVal.reason);
       callbacks.terminating();
       return;
     } else {
@@ -310,7 +310,7 @@ export default function RepresentationStream<TSegmentDataType>(
       if (nextQueue.length === 0 && nextInit === null) {
         log.debug("Stream: No request left, terminate", bufferType);
         segmentsToLoadRef.finish();
-        canceller.cancel("RepresentationStream: empty queue + termination");
+        canceller.cancel(terminateVal.reason);
         callbacks.terminating();
         return;
       }
