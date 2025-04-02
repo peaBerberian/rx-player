@@ -232,6 +232,7 @@ export default class PersistentSessionsStore {
    * @returns {number}
    */
   private _getIndex(initData: IProcessedProtectionData): number {
+    console.warn("!!!!!! _getIndex", this._entries.length);
     // Older versions of the format include a concatenation of all
     // initialization data and its hash.
     // This is only computed lazily, the first time it is needed.
@@ -250,8 +251,15 @@ export default class PersistentSessionsStore {
       return lazyConcatenatedData;
     }
 
+    console.warn(
+      "!!!!!! initData",
+      "type",
+      initData.type,
+      initData.values.getFormattedValues().length,
+    );
     for (let i = 0; i < this._entries.length; i++) {
       const entry = this._entries[i];
+      console.warn("!!!!! ENTRY", JSON.stringify(entry));
       if (entry.initDataType === initData.type) {
         switch (entry.version) {
           case 4:
