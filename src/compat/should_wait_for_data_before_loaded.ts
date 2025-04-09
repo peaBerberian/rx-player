@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { isSafariMobile } from "./browser_detection";
-
 /**
  * On some browsers, the ready state might never go above `1` when autoplay is
  * blocked. On these cases, for now, we just advertise the content as "loaded".
@@ -24,10 +22,6 @@ import { isSafariMobile } from "./browser_detection";
  * @param {Boolean} isDirectfile
  * @returns {Boolean}
  */
-export default function shouldWaitForDataBeforeLoaded(isDirectfile: boolean): boolean {
-  if (isDirectfile && isSafariMobile) {
-    return false;
-  } else {
-    return true;
-  }
+export default function shouldWaitForDataBeforeLoaded(_isDirectfile: boolean): boolean {
+  return false;
 }
