@@ -93,6 +93,7 @@ export default function performInitialSeekAndPlay(
       let hasAskedForInitialSeek = false;
 
       const performInitialSeek = (initialSeekTime: number) => {
+        console.warn("!!!!! CALL PERFORM INITIAL SEEK");
         playbackObserver.setCurrentTime(initialSeekTime);
         hasAskedForInitialSeek = true;
       };
@@ -105,6 +106,7 @@ export default function performInitialSeekAndPlay(
       // a sufficient `readyState` has been reached for directfile contents.
       // So let's divide the two possibilities here.
       if (!isDirectfile || typeof startTime === "number") {
+        console.warn("!!!!!! CASE 1", isDirectfile, typeof startTime, startTime);
         const initiallySeekedTime =
           typeof startTime === "number" ? startTime : startTime();
         if (initiallySeekedTime !== 0 && initiallySeekedTime !== undefined) {
@@ -112,14 +114,17 @@ export default function performInitialSeekAndPlay(
         }
         waitForSeekable();
       } else {
+        console.warn("!!!!!! CASE 2", isDirectfile, typeof startTime, startTime);
         playbackObserver.listen(
           (obs, stopListening) => {
             const initiallySeekedTime =
               typeof startTime === "number" ? startTime : startTime();
             if (
-              initiallySeekedTime === undefined &&
-              obs.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+              window.SKIP !== undefined ||
+              (initiallySeekedTime === undefined &&
+                obs.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
             ) {
+              console.warn("!!!!!! ON SORT POUR L'INSTANT de 1", obs.readyState);
               /**
                * The starting position may not be known yet.
                * Postpone the seek to a moment where the starting position should be known,
@@ -133,6 +138,13 @@ export default function performInitialSeekAndPlay(
             if (obs.readyState >= 1) {
               stopListening();
 
+              console.warn(
+                "!!!!!! initialSeekAndPlay 1",
+                obs.readyState,
+                initiallySeekedTime,
+                "canSeekDirectlyAfterLoadedMetadata",
+                canSeekDirectlyAfterLoadedMetadata,
+              );
               if (initiallySeekedTime !== 0 && initiallySeekedTime !== undefined) {
                 if (canSeekDirectlyAfterLoadedMetadata) {
                   performInitialSeek(initiallySeekedTime);
@@ -158,6 +170,7 @@ export default function performInitialSeekAndPlay(
        * potentially send warning if a minor issue is detected.
        */
       function waitForSeekable() {
+        console.warn("!!!!!! CALLING waitForSeekable");
         /**
          * We only want to continue to `play` when a `seek` has actually been
          * performed (if it has been asked). This boolean keep track of if the
@@ -166,6 +179,12 @@ export default function performInitialSeekAndPlay(
         let hasStartedSeeking = false;
         playbackObserver.listen(
           (obs, stopListening) => {
+            console.warn(
+              "!!!!!! waitForSeekable listening",
+              hasStartedSeeking,
+              obs.seeking,
+              obs.event,
+            );
             if (
               !hasStartedSeeking &&
               (obs.seeking !== SeekingState.None ||
@@ -173,11 +192,23 @@ export default function performInitialSeekAndPlay(
                 obs.event === "internal-seeking")
             ) {
               hasStartedSeeking = true;
+              console.warn("!!!!!! waitForSeekable listening updated hasStartedSeeking");
             }
             if ((hasAskedForInitialSeek && !hasStartedSeeking) || obs.readyState === 0) {
+              console.warn(
+                "!!!!!! waitForSeekable exiting 1",
+                hasAskedForInitialSeek,
+                hasStartedSeeking,
+                obs.readyState,
+              );
               return;
             }
             stopListening();
+            console.warn(
+              "!!!!!! waitForSeekable end 1",
+              shouldValidateMetadata(),
+              mediaElement.duration,
+            );
             if (shouldValidateMetadata() && mediaElement.duration === 0) {
               const error = new MediaError(
                 "MEDIA_ERR_NOT_LOADED_METADATA",
@@ -185,8 +216,18 @@ export default function performInitialSeekAndPlay(
                   "falsely announced having loaded the content.",
               );
               onWarning(error);
+              console.warn(
+                "!!!!!! waitForSeekable first case",
+                shouldValidateMetadata(),
+                mediaElement.duration,
+              );
             }
             if (cancelSignal.isCancelled()) {
+              console.warn(
+                "!!!!!! waitForSeekable second case",
+                shouldValidateMetadata(),
+                mediaElement.duration,
+              );
               return;
             }
             waitForPlayable();
@@ -205,11 +246,33 @@ export default function performInitialSeekAndPlay(
       function waitForPlayable() {
         playbackObserver.listen(
           (observation, stopListening) => {
+            console.warn(
+              "!!!!!! waitForPlayable",
+              "seeking",
+              observation.seeking,
+              "rebuffering",
+              observation.rebuffering,
+              "readyState",
+              observation.readyState,
+            );
+            window.FORCE_PLAYABLE = function () {
+              stopListening();
+              onPlayable();
+            };
             if (
               observation.seeking === SeekingState.None &&
               observation.rebuffering === null &&
               observation.readyState >= 1
             ) {
+              console.warn(
+                "!!!!!! waitForPlayable OK ON EST GOOD",
+                "seeking",
+                observation.seeking,
+                "rebuffering",
+                observation.rebuffering,
+                "readyState",
+                observation.readyState,
+              );
               stopListening();
               onPlayable();
             }
