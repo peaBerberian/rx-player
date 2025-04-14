@@ -15,6 +15,7 @@
  */
 
 import type { IMediaElement } from "../../../compat/browser_compatibility_types";
+import { isSafariMobile } from "../../../compat/browser_detection";
 import canSeekDirectlyAfterLoadedMetadata from "../../../compat/can_seek_directly_after_loaded_metadata";
 import shouldValidateMetadata from "../../../compat/should_validate_metadata";
 import { MediaError } from "../../../errors";
@@ -22,6 +23,7 @@ import log from "../../../log";
 import type { IMediaElementPlaybackObserver } from "../../../playback_observer";
 import { SeekingState } from "../../../playback_observer";
 import type { IPlayerError } from "../../../public_types";
+import noop from "../../../utils/noop";
 import type { IReadOnlySharedReference } from "../../../utils/reference";
 import SharedReference from "../../../utils/reference";
 import type {
@@ -114,7 +116,12 @@ export default function performInitialSeekAndPlay(
         }
         waitForSeekable();
       } else {
-        console.warn("!!!!!! CASE 2", isDirectfile, typeof startTime, startTime);
+        console.warn(
+          "!!!!!! CASE 2",
+          isDirectfile,
+          typeof startTime,
+          typeof startTime === "function" ? startTime() : startTime,
+        );
         playbackObserver.listen(
           (obs, stopListening) => {
             const initiallySeekedTime =
@@ -125,6 +132,11 @@ export default function performInitialSeekAndPlay(
                 obs.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
             ) {
               console.warn("!!!!!! ON SORT POUR L'INSTANT de 1", obs.readyState);
+              if (obs.readyState >= HTMLMediaElement.HAVE_METADATA) {
+                console.warn("!!!!! isSafariMobile", isSafariMobile);
+                mediaElement.play().catch(noop);
+                mediaElement.pause();
+              }
               /**
                * The starting position may not be known yet.
                * Postpone the seek to a moment where the starting position should be known,
