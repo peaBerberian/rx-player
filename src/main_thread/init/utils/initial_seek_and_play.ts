@@ -94,6 +94,8 @@ export default function performInitialSeekAndPlay(
       /** `true` if we asked the `PlaybackObserver` to perform an initial seek. */
       let hasAskedForInitialSeek = false;
 
+      let isWorkAroundingBecauseSafariIsShit = false;
+
       const performInitialSeek = (initialSeekTime: number) => {
         console.warn("!!!!! CALL PERFORM INITIAL SEEK");
         playbackObserver.setCurrentTime(initialSeekTime);
@@ -127,15 +129,20 @@ export default function performInitialSeekAndPlay(
             const initiallySeekedTime =
               typeof startTime === "number" ? startTime : startTime();
             if (
-              window.SKIP !== undefined ||
-              (initiallySeekedTime === undefined &&
-                obs.readyState < HTMLMediaElement.HAVE_CURRENT_DATA)
+              initiallySeekedTime === undefined &&
+              obs.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
             ) {
               console.warn("!!!!!! ON SORT POUR L'INSTANT de 1", obs.readyState);
-              if (obs.readyState >= HTMLMediaElement.HAVE_METADATA) {
-                console.warn("!!!!! isSafariMobile", isSafariMobile);
+              if (
+                obs.readyState >= HTMLMediaElement.HAVE_METADATA &&
+                isSafariMobile &&
+                !isWorkAroundingBecauseSafariIsShit
+              ) {
+                isWorkAroundingBecauseSafariIsShit = true;
+                console.warn(
+                  "!!!!! LA ON PLAY TEMPORAIREMENT PARCE QUE SAFARI EST TOUT CASSE",
+                );
                 mediaElement.play().catch(noop);
-                mediaElement.pause();
               }
               /**
                * The starting position may not be known yet.
@@ -149,6 +156,10 @@ export default function performInitialSeekAndPlay(
             }
             if (obs.readyState >= 1) {
               stopListening();
+              if (isWorkAroundingBecauseSafariIsShit) {
+                console.warn("!!!!! AAAAAH ENFIN LA DUREE, ALLEZ ON PAUSE MTN");
+                mediaElement.pause();
+              }
 
               console.warn(
                 "!!!!!! initialSeekAndPlay 1",
@@ -267,10 +278,6 @@ export default function performInitialSeekAndPlay(
               "readyState",
               observation.readyState,
             );
-            window.FORCE_PLAYABLE = function () {
-              stopListening();
-              onPlayable();
-            };
             if (
               observation.seeking === SeekingState.None &&
               observation.rebuffering === null &&
