@@ -49,21 +49,19 @@ export default function getLoadedReference(
         observation.freezing !== null ||
         observation.readyState === 0
       ) {
+        console.warn("!!!!! POUR L'instant on exit le LOADED");
         return;
       }
 
       if (!shouldWaitForDataBeforeLoaded(isDirectfile)) {
-        // The duration is NaN if no media data is available,
-        // which means media is not loaded yet.
-        if (isNaN(observation.duration)) {
-          return;
-        }
+        console.warn("!!!!! ON EN EST Là avec notre duration à", observation.duration);
         if (observation.duration > 0) {
           isLoaded.setValue(true);
           listenCanceller.cancel();
           return;
         }
       }
+      console.warn("!!!!! ON N'attends rien 1 -", observation.duration);
 
       const minReadyState = shouldWaitForHaveEnoughData() ? 4 : 3;
       if (observation.readyState >= minReadyState) {
