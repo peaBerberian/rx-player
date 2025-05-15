@@ -286,7 +286,7 @@ export default function fetchRequest(
 export function fetchIsSupported(): boolean {
   // Match [native code] and variants with different white space.
   const nativeCodeRegex = /\[\s*native\s+code\s*\]/;
-  return (
+  const ret =
     typeof globalScope.fetch === "function" &&
     /**
      * Detect if the fetch or AbortController function has been rewritten.
@@ -298,6 +298,12 @@ export function fetchIsSupported(): boolean {
     nativeCodeRegex.test(globalScope.fetch.toString()) &&
     !isNullOrUndefined(_AbortController) &&
     nativeCodeRegex.test(_AbortController.toString()) &&
-    !isNullOrUndefined(_Headers)
+    !isNullOrUndefined(_Headers);
+  console.warn(
+    "!!!! FETCH IS SUPPORTED",
+    ret,
+    globalScope?.fetch?.toString(),
+    _AbortController?.toString(),
   );
+  return ret;
 }
