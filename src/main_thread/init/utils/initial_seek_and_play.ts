@@ -15,6 +15,7 @@
  */
 
 import type { IMediaElement } from "../../../compat/browser_compatibility_types";
+import callPlayEvenIfSeeking from "../../../compat/call_play_even_if_seeking";
 import canSeekDirectlyAfterLoadedMetadata from "../../../compat/can_seek_directly_after_loaded_metadata";
 import shouldValidateMetadata from "../../../compat/should_validate_metadata";
 import { MediaError } from "../../../errors";
@@ -206,7 +207,8 @@ export default function performInitialSeekAndPlay(
         playbackObserver.listen(
           (observation, stopListening) => {
             if (
-              observation.seeking === SeekingState.None &&
+              (callPlayEvenIfSeeking(isDirectfile) ||
+                observation.seeking === SeekingState.None) &&
               observation.rebuffering === null &&
               observation.readyState >= 1
             ) {
