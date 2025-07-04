@@ -50,6 +50,28 @@ function getTRAFs(buffer: Uint8Array): Uint8Array[] {
   }, []);
 }
 
+export function getTRAKs(buffer: Uint8Array): Uint8Array[] {
+  const moofs = getBoxesContent(buffer, 0x6d6f6f76 /* moov */);
+  return moofs.reduce((acc: Uint8Array[], moof: Uint8Array) => {
+    const traf = getBoxContent(moof, 0x7472616b /* trak */);
+    if (traf !== null) {
+      acc.push(traf);
+    }
+    return acc;
+  }, []);
+}
+
+export function getMVEXs(buffer: Uint8Array): Uint8Array[] {
+  const moovs = getBoxesContent(buffer, 0x6d6f6f76 /* moov */);
+  return moovs.reduce((acc: Uint8Array[], moov: Uint8Array) => {
+    const mvex = getBoxContent(moov, 0x6d766578 /* mvex */);
+    if (mvex !== null) {
+      acc.push(mvex);
+    }
+    return acc;
+  }, []);
+}
+
 /**
  * Returns the content of the first "moof" box encountered in the given ISOBMFF
  * data.

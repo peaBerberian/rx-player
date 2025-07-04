@@ -1,6 +1,6 @@
 import type { IMediaSource, ISourceBuffer } from "../compat/browser_compatibility_types";
 import { MediaSource_ } from "../compat/browser_compatibility_types";
-import tryToChangeSourceBufferType from "../compat/change_source_buffer_type";
+// import tryToChangeSourceBufferType from "../compat/change_source_buffer_type";
 import { onSourceClose, onSourceEnded, onSourceOpen } from "../compat/event_listeners";
 import { MediaError, SourceBufferError } from "../errors";
 import log from "../log";
@@ -541,12 +541,12 @@ export class MainSourceBufferInterface implements ISourceBufferInterface {
     const { codec, timestampOffset, appendWindow = [] } = params;
     if (codec !== undefined && codec !== this.codec) {
       log.debug("SBI: updating codec", codec);
-      const hasUpdatedSourceBufferType = tryToChangeSourceBufferType(sourceBuffer, codec);
-      if (hasUpdatedSourceBufferType) {
-        this.codec = codec;
-      } else {
-        log.debug("SBI: could not update codec", codec, this.codec);
-      }
+      // const hasUpdatedSourceBufferType = tryToChangeSourceBufferType(sourceBuffer, codec);
+      // if (hasUpdatedSourceBufferType) {
+      //   this.codec = codec;
+      // } else {
+      //   log.debug("SBI: could not update codec", codec, this.codec);
+      // }
     }
 
     if (
