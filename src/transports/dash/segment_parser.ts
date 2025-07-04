@@ -22,6 +22,9 @@ import {
 import {
   getKeyIdFromInitSegment,
   parseEmsgBoxes,
+  patchTfhd,
+  patchTkhd,
+  patchTrex,
 } from "../../parsers/containers/isobmff/utils";
 import { getSegmentsFromCues, getTimeCodeScale } from "../../parsers/containers/matroska";
 import isNullOrUndefined from "../../utils/is_null_or_undefined";
@@ -104,6 +107,7 @@ export default function generateAudioVideoSegmentParser({
     }
 
     if (!segment.isInit) {
+      patchTfhd(chunkData);
       const chunkInfos = seemsToBeMP4
         ? getISOBMFFTimingInfos(chunkData, isChunked, segment, initTimescale)
         : null; // TODO extract time info from webm
@@ -152,8 +156,12 @@ export default function generateAudioVideoSegmentParser({
         appendWindow,
       };
     }
+
     // we're handling an initialization segment
     const { indexRange } = segment;
+
+    patchTkhd(chunkData);
+    patchTrex(chunkData);
 
     let segmentList;
     if (containerType === "webm") {

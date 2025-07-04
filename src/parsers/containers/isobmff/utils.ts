@@ -32,7 +32,7 @@ import { MAX_32_BIT_INT } from "./constants";
 import { createBox } from "./create_box";
 import { getPlayReadyKIDFromPrivateData } from "./drm";
 import { getBoxContent, getBoxOffsets, getChildBox } from "./get_box";
-import { getEMSG, getMDIA, getTRAF, getTRAFs } from "./read";
+import { getEMSG, getMDIA, getMVEXs, getTRAF, getTRAFs, getTRAKs } from "./read";
 
 /** Information related to a PSSH box. */
 export interface IISOBMFFPSSHInfo {
@@ -244,6 +244,107 @@ interface ITrunSampleInfo {
   size: number | undefined;
   /** Flags for that sample as per the ISOBMFF spec, in decimal form. */
   flags: number | undefined;
+}
+
+export function patchTfhd(buffer: Uint8Array): void {
+  const trafs = getTRAFs(buffer);
+  for (const traf of trafs) {
+    const tfhdOffsets = getBoxOffsets(traf, 0x74666864 /* tfhd */);
+    if (tfhdOffsets === null) {
+      log.error("!!!!!!! tfhd not found in traf");
+      return;
+    }
+    const tfhdBox = traf.subarray(tfhdOffsets[0], tfhdOffsets[2]);
+
+    // force trackId=1
+    log.error(
+      "!!!!!!! Patching tfhd",
+      be4toi(tfhdBox, tfhdOffsets[1] - tfhdOffsets[0] + 4),
+    );
+    tfhdBox.set([0, 0, 0, 1], tfhdOffsets[1] - tfhdOffsets[0] + 4 /* version + flags */);
+    log.error(
+      "!!!!!!! Patching tfhd after",
+      be4toi(tfhdBox, tfhdOffsets[1] - tfhdOffsets[0] + 4),
+    );
+  }
+}
+
+export function patchTrex(buffer: Uint8Array): void {
+  window.REPORR = true;
+  const mvexs = getMVEXs(buffer);
+  window.REPORR = false;
+  if (mvexs.length === 0) {
+    log.error("!!!!!!! trexbox no MVEX found");
+  }
+  for (const mvex of mvexs) {
+    const trexOffsets = getBoxOffsets(mvex, 0x74726578 /* trex */);
+    if (trexOffsets === null) {
+      log.error("!!!!!!! trex not found in mvex");
+      return;
+    }
+    const trexBox = mvex.subarray(trexOffsets[1], trexOffsets[2]);
+
+    if (trexBox === null) {
+      log.error("!!!!!!! trexbox no");
+      continue;
+    }
+    let cursor = 0;
+    // const version = trexBox[cursor];
+    cursor += 1;
+    be3toi(trexBox, cursor);
+    cursor += 3;
+
+    // force trackId=1
+    log.error("!!!!!!! Patching trex", be4toi(trexBox, cursor));
+    trexBox.set([0, 0, 0, 1], cursor);
+    log.error("!!!!!!! Patching trex AFTER", be4toi(trexBox, cursor));
+  }
+}
+
+export function patchTkhd(buffer: Uint8Array): void {
+  const traks = getTRAKs(buffer);
+  for (const trak of traks) {
+    const tkhdOffsets = getBoxOffsets(trak, 0x746b6864 /* tkhd */);
+    if (tkhdOffsets === null) {
+      log.error("!!!!!!! tkhd not found in trak");
+      return;
+    }
+    const tkhdBox = trak.subarray(tkhdOffsets[1], tkhdOffsets[2]);
+
+    if (tkhdBox === null) {
+      continue;
+    }
+    let cursor = 0;
+    const version = tkhdBox[cursor];
+    cursor += 1;
+    be3toi(tkhdBox, cursor);
+    cursor += 3;
+    if (version === 1) {
+      cursor += 8 + 8;
+    } else {
+      cursor += 4 + 4;
+    }
+
+    // force trackId=1
+    log.error("!!!!!!! Patching tkhd", be4toi(tkhdBox, cursor));
+    tkhdBox.set([0, 0, 0, 1], cursor);
+    log.error("!!!!!!! Patching tkhd AFTER", be4toi(tkhdBox, cursor));
+  }
+}
+
+export function readTfhd(buffer: Uint8Array): number | null {
+  const trafs = getTRAFs(buffer);
+  for (const traf of trafs) {
+    const tfhdOffsets = getBoxOffsets(traf, 0x74666864 /* tfhd */);
+    if (tfhdOffsets === null) {
+      log.error("!!!!!!! tfhd not found in traf");
+      return null;
+    }
+    const tfhdBox = traf.subarray(tfhdOffsets[0], tfhdOffsets[2]);
+
+    return be4toi(tfhdBox, tfhdOffsets[1] - tfhdOffsets[0] + 4);
+  }
+  return null;
 }
 
 /**

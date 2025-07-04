@@ -17,6 +17,7 @@
 import log from "../../../log";
 import assert from "../../../utils/assert";
 import { be4toi, be8toi } from "../../../utils/byte_parsing";
+import { utf8ToStr } from "../../../utils/string_parsing";
 
 /**
  * From a given buffer representing ISOBMFF data, browses inner boxes in
@@ -127,6 +128,9 @@ function getBoxOffsets(
     lastBoxSize = be4toi(buf, lastOffset);
     lastOffset += 4;
 
+    if (window.REPORR) {
+      console.warn("!!!! utghwr8", utf8ToStr(buf.subarray(lastOffset, lastOffset + 4)));
+    }
     name = be4toi(buf, lastOffset);
     lastOffset += 4;
 
