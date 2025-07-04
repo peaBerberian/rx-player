@@ -270,9 +270,7 @@ export function patchTfhd(buffer: Uint8Array): void {
 }
 
 export function patchTrex(buffer: Uint8Array): void {
-  window.REPORR = true;
   const mvexs = getMVEXs(buffer);
-  window.REPORR = false;
   if (mvexs.length === 0) {
     log.error("!!!!!!! trexbox no MVEX found");
   }

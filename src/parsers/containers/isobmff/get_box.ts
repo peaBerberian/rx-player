@@ -128,9 +128,6 @@ function getBoxOffsets(
     lastBoxSize = be4toi(buf, lastOffset);
     lastOffset += 4;
 
-    if (window.REPORR) {
-      console.warn("!!!! utghwr8", utf8ToStr(buf.subarray(lastOffset, lastOffset + 4)));
-    }
     name = be4toi(buf, lastOffset);
     lastOffset += 4;
 
