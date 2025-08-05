@@ -3765,7 +3765,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       // TODO: Make it work with multithread?
       return false;
     }
-    if (options.transport !== "dash") {
+    if (options.transport !== "dash" && options.transport !== "local") {
       return false;
     }
     if (
