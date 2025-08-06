@@ -154,7 +154,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   constructor(settings: IInitializeArguments) {
     super();
     this._initSettings = settings;
-    this._initCanceller = new TaskCanceller();
+    this._initCanceller = new TaskCanceller("Init");
     this._manifest = null;
     this._decryptionCapabilities = { status: "uninitialized", value: null };
     const urls = settings.url === undefined ? undefined : [settings.url];
@@ -190,8 +190,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       }),
     );
     this._manifestFetcher.start();
-    this._initCanceller.signal.register(() => {
-      this._manifestFetcher.dispose();
+    this._initCanceller.signal.register((err) => {
+      this._manifestFetcher.dispose(err.reason);
     });
   }
 
@@ -241,9 +241,12 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   /**
    * Stop content and free all resources linked to this
    * `MediaSourceContentInitializer`.
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * cancellation. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public dispose(): void {
-    this._initCanceller.cancel();
+  public dispose(reason: string | undefined): void {
+    this._initCanceller.cancel(reason ?? "Init dispose");
   }
 
   /**
@@ -254,7 +257,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     if (this._initCanceller.isUsed()) {
       return;
     }
-    this._initCanceller.cancel();
+    this._initCanceller.cancel("Init fatal err");
     this.trigger("error", err);
   }
 
@@ -346,7 +349,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
           }
           stopListeningToDrmUpdates();
 
-          const mediaSourceCanceller = new TaskCanceller();
+          const mediaSourceCanceller = new TaskCanceller("Init MediaSource");
           mediaSourceCanceller.linkToSignal(initCanceller.signal);
           createMediaSource(mediaElement, mediaSourceCanceller.signal)
             .then((mediaSource) => {
@@ -514,7 +517,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
   ): IReloadMediaSourceCallback {
     const initCanceller = this._initCanceller;
     return (reloadOrder: { position: number; autoPlay: boolean }): void => {
-      currentCanceller.cancel();
+      currentCanceller.cancel("Init reloading MediaSource");
       if (initCanceller.isUsed()) {
         return;
       }
@@ -523,7 +526,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
         return;
       }
 
-      const newCanceller = new TaskCanceller();
+      const newCanceller = new TaskCanceller("Init MediaSource");
       newCanceller.linkToSignal(initCanceller.signal);
       createMediaSource(args.mediaElement, newCanceller.signal)
         .then((newMediaSource) => {
@@ -590,9 +593,9 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     if (textDisplayer !== null) {
       const sender = new MainThreadTextDisplayerInterface(textDisplayer);
       textDisplayerInterface = sender;
-      cancelSignal.register(() => {
-        sender.stop();
-        textDisplayer?.stop();
+      cancelSignal.register((err) => {
+        sender.stop(err.reason);
+        textDisplayer?.stop(err.reason);
       });
     }
 
@@ -603,8 +606,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
       textDisplayerInterface,
     );
 
-    cancelSignal.register(() => {
-      segmentSinksStore.disposeAll();
+    cancelSignal.register((err) => {
+      segmentSinksStore.disposeAll(err.reason);
     });
 
     const { autoPlayResult, initialPlayPerformed } = performInitialSeekAndPlay(
@@ -652,8 +655,8 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
             cancelSignal,
           );
           streamEventsEmitter.start();
-          cancelSignal.register(() => {
-            streamEventsEmitter.stop();
+          cancelSignal.register((err) => {
+            streamEventsEmitter.stop(err.reason);
           });
         }
       },
@@ -753,6 +756,10 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
         getLoadedReference(playbackObserver, false, cancelSignal).onUpdate(
           (isLoaded, stopListening) => {
             if (isLoaded) {
+              const fetchThumbnails = createThumbnailFetcher(
+                transport.thumbnails,
+                cdnPrioritizer,
+              );
               stopListening();
               this.trigger("loaded", {
                 getSegmentSinkMetrics: async () => {
@@ -765,10 +772,6 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
                   thumbnailTrackId: string,
                   time: number,
                 ): Promise<IThumbnailResponse> => {
-                  const fetchThumbnails = createThumbnailFetcher(
-                    transport.thumbnails,
-                    cdnPrioritizer,
-                  );
                   return getThumbnailData(
                     fetchThumbnails,
                     manifest,
@@ -1080,7 +1083,7 @@ export default class MediaSourceContentInitializer extends ContentInitializer {
     rebufferingController.addEventListener("warning", (err) =>
       this.trigger("warning", err),
     );
-    cancelSignal.register(() => rebufferingController.destroy());
+    cancelSignal.register((err) => rebufferingController.destroy(err.reason));
     rebufferingController.start();
     return rebufferingController;
   }

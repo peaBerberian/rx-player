@@ -146,7 +146,7 @@ export default class PlaybackObserver {
     this._mediaElement = mediaElement;
     this._withMediaSource = options.withMediaSource;
     this._lowLatencyMode = options.lowLatencyMode;
-    this._canceller = new TaskCanceller();
+    this._canceller = new TaskCanceller("MediaElementPlaybackObserver");
     this._observationRef = this._createSharedReference();
     this._expectedSeekingPosition = null;
     this._pendingSeek = null;
@@ -172,9 +172,12 @@ export default class PlaybackObserver {
    *
    * Note that it is important to call stop once the `PlaybackObserver` is no
    * more needed to avoid unnecessarily leaking resources.
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * stop. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public stop() {
-    this._canceller.cancel();
+  public stop(reason: string | undefined) {
+    this._canceller.cancel(reason ?? "MediaElementPlaybackObserver stop");
   }
 
   /**

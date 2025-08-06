@@ -50,18 +50,19 @@ export default async function renderThumbnail(
   }
 
   const { thumbnailRequestsInfo, currentContentCanceller } = contentInfos;
-  const canceller = new TaskCanceller();
-  canceller.linkToSignal(currentContentCanceller.signal);
+  const canceller = new TaskCanceller("Render Thumbnail");
+  const unlinkCanceller = canceller.linkToSignal(currentContentCanceller.signal);
 
   let imageUrl: string | undefined;
 
   const olderTaskSameContainer = thumbnailRequestsInfo.pendingRequests.get(container);
-  olderTaskSameContainer?.cancel();
+  olderTaskSameContainer?.cancel("new thumbnail has same container");
 
   thumbnailRequestsInfo.pendingRequests.set(container, canceller);
 
   const onFinished = () => {
-    canceller.cancel();
+    unlinkCanceller();
+    canceller.cancel("thumbnail request finished");
     thumbnailRequestsInfo.pendingRequests.delete(container);
 
     // Let's revoke the URL after a round-trip to the event loop just in case
@@ -153,6 +154,11 @@ export default async function renderThumbnail(
     canvas.width = res.thumbnails[foundIdx].width;
     return new Promise((resolve, reject) => {
       image.onload = () => {
+        if (canceller.signal.cancellationError !== null) {
+          reject(canceller.signal.cancellationError);
+          onFinished();
+          return;
+        }
         try {
           context.drawImage(
             image,
@@ -184,6 +190,11 @@ export default async function renderThumbnail(
       };
 
       image.onerror = () => {
+        if (canceller.signal.cancellationError !== null) {
+          reject(canceller.signal.cancellationError);
+          onFinished();
+          return;
+        }
         if (options.keepPreviousThumbnailOnError !== true) {
           clearPreviousThumbnails();
         }

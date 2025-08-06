@@ -1,4 +1,5 @@
 import type { IMediaElement } from "../../../compat/browser_compatibility_types";
+import getEmeApiImplementation from "../../../compat/eme";
 import { EncryptedMediaError } from "../../../errors";
 import features from "../../../features";
 import log from "../../../log";
@@ -65,7 +66,7 @@ export default function initializeContentDecryption(
     return createEmeDisabledReference("EME feature not activated.");
   }
 
-  const decryptorCanceller = new TaskCanceller();
+  const decryptorCanceller = new TaskCanceller("Init: Decryption Capabilities");
   decryptorCanceller.linkToSignal(cancelSignal);
   const drmStatusRef = new SharedReference<IDrmInitializationStatus>(
     {
@@ -77,12 +78,13 @@ export default function initializeContentDecryption(
 
   const ContentDecryptor = features.decrypt;
 
-  if (!ContentDecryptor.hasEmeApis()) {
+  const emeApi = mediaElement.FORCED_EME_API ?? getEmeApiImplementation("auto");
+  if (emeApi === null) {
     return createEmeDisabledReference("EME API not available on the current page.");
   }
 
   log.debug("Init: Creating ContentDecryptor");
-  const contentDecryptor = new ContentDecryptor(mediaElement, keySystems);
+  const contentDecryptor = new ContentDecryptor(emeApi, mediaElement, keySystems);
 
   const onStateChange = (state: ContentDecryptorState) => {
     if (state > ContentDecryptorState.Initializing) {
@@ -123,7 +125,7 @@ export default function initializeContentDecryption(
   });
 
   contentDecryptor.addEventListener("error", (error) => {
-    decryptorCanceller.cancel();
+    decryptorCanceller.cancel("ContentDecryptor err");
     callbacks.onError(error);
   });
 
@@ -139,8 +141,8 @@ export default function initializeContentDecryption(
     callbacks.onKeyIdsCompatibilityUpdate(x);
   });
 
-  decryptorCanceller.signal.register(() => {
-    contentDecryptor.dispose();
+  decryptorCanceller.signal.register((err) => {
+    contentDecryptor.dispose(err.reason);
   });
 
   return {

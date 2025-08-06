@@ -31,7 +31,6 @@ import {
 import getStartDate from "../../compat/get_start_date";
 import hasMseInWorker from "../../compat/has_mse_in_worker";
 import hasWorkerApi from "../../compat/has_worker_api";
-import isDebugModeEnabled from "../../compat/is_debug_mode_enabled";
 import config from "../../config";
 import type { ISegmentSinkMetrics } from "../../core/segment_sinks/segment_sinks_store";
 import type {
@@ -63,6 +62,8 @@ import {
   ManifestMetadataFormat,
   createRepresentationFilterFromFnString,
   getPeriodForTime,
+  toVideoRepresentation,
+  toAudioRepresentation,
 } from "../../manifest";
 import type { IWorkerMessage } from "../../multithread_types";
 import { MainThreadMessageType, WorkerMessageType } from "../../multithread_types";
@@ -112,6 +113,7 @@ import arrayIncludes from "../../utils/array_includes";
 import assert, { assertUnreachable } from "../../utils/assert";
 import type { IEventPayload, IListener } from "../../utils/event_emitter";
 import EventEmitter from "../../utils/event_emitter";
+import globalScope from "../../utils/global_scope";
 import idGenerator from "../../utils/id_generator";
 import isNullOrUndefined from "../../utils/is_null_or_undefined";
 import type Logger from "../../utils/logger";
@@ -146,6 +148,40 @@ import {
 } from "./utils";
 
 /* eslint-disable @typescript-eslint/naming-convention */
+
+// Enable debug mode as soon as `RX_PLAYER_DEBUG_MODE__` is set to `true`:
+
+const globals: typeof globalScope & {
+  __RX_PLAYER_DEBUG_MODE__?: boolean;
+} = globalScope;
+
+let isDebugModeEnabled: boolean =
+  typeof globals.__RX_PLAYER_DEBUG_MODE__ === "boolean" &&
+  globals.__RX_PLAYER_DEBUG_MODE__;
+
+try {
+  Object.defineProperty(globals, "__RX_PLAYER_DEBUG_MODE__", {
+    get(): boolean {
+      return isDebugModeEnabled;
+    },
+    set(val: boolean) {
+      isDebugModeEnabled = val;
+      if (val) {
+        Player.LogLevel = "DEBUG";
+        Player.LogFormat = "full";
+      }
+    },
+  });
+} catch (_err) {
+  // Ignore, maybe we're in some jsdom thing, maybe the current target does not
+  // authorize setting globals that way etc.
+}
+
+if (isDebugModeEnabled) {
+  log.setLevel("DEBUG", "full");
+} else if ((__ENVIRONMENT__.CURRENT_ENV as number) === (__ENVIRONMENT__.DEV as number)) {
+  log.setLevel(__LOGGER_LEVEL__.CURRENT_LEVEL, "standard");
+}
 
 const generateContentId = idGenerator();
 
@@ -414,7 +450,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     this.state = "STOPPED";
     this.videoElement = videoElement;
     Player._priv_registerVideoElement(this.videoElement);
-    const destroyCanceller = new TaskCanceller();
+    const destroyCanceller = new TaskCanceller("API");
     this._destroyCanceller = destroyCanceller;
 
     this._priv_pictureInPictureRef = getPictureOnPictureStateRef(
@@ -565,7 +601,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           dashWasmUrl: workerSettings.dashWasmUrl,
           logLevel: log.getLevel(),
           logFormat: log.getFormat(),
-          sendBackLogs: isDebugModeEnabled(),
+          sendBackLogs: isDebugModeEnabled,
           date: Date.now(),
           timestamp: getMonotonicTimeStamp(),
           hasVideo: this.videoElement?.nodeName.toLowerCase() === "video",
@@ -583,7 +619,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
             value: {
               logLevel: logInfo.level,
               logFormat: logInfo.format,
-              sendBackLogs: isDebugModeEnabled(),
+              sendBackLogs: isDebugModeEnabled,
             },
           });
         },
@@ -649,7 +685,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
    */
   stop(): void {
     if (this._priv_contentInfos !== null) {
-      this._priv_contentInfos.currentContentCanceller.cancel();
+      this._priv_contentInfos.currentContentCanceller.cancel("API stop");
     }
     this._priv_cleanUpCurrentContentState();
     if (this.state !== PLAYER_STATES.STOPPED) {
@@ -675,7 +711,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     }
 
     // free resources linked to the Player instance
-    this._destroyCanceller.cancel();
+    this._destroyCanceller.cancel("API destroy");
 
     this._priv_reloadingMetadata = {};
 
@@ -763,11 +799,11 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     if (features.createDebugElement === null) {
       throw new Error("Feature `DEBUG_ELEMENT` not added to the RxPlayer");
     }
-    const canceller = new TaskCanceller();
+    const canceller = new TaskCanceller("API debug element");
     features.createDebugElement(element, this, canceller.signal);
     return {
       dispose() {
-        canceller.cancel();
+        canceller.cancel("API debug dispose");
       },
     };
   }
@@ -894,7 +930,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const isDirectFile = transport === "directfile";
 
     /** Emit to stop the current content. */
-    const currentContentCanceller = new TaskCanceller();
+    const currentContentCanceller = new TaskCanceller("API current content");
 
     const videoElement = this.videoElement;
 
@@ -990,6 +1026,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       const canRunInMultiThread =
         features.multithread !== null &&
         this._priv_worker !== null &&
+        this.videoElement.FORCED_MEDIA_SOURCE === undefined &&
         transport === "dash" &&
         MULTI_THREAD_UNSUPPORTED_LOAD_VIDEO_OPTIONS.every((option) =>
           isNullOrUndefined(options[option]),
@@ -1230,8 +1267,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       lowLatencyMode,
     });
 
-    currentContentCanceller.signal.register(() => {
-      playbackObserver.stop();
+    currentContentCanceller.signal.register((err) => {
+      playbackObserver.stop(err.reason);
     });
 
     // Update the RxPlayer's state at the right events
@@ -1242,8 +1279,8 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       isDirectFile,
       currentContentCanceller.signal,
     );
-    currentContentCanceller.signal.register(() => {
-      initializer.dispose();
+    currentContentCanceller.signal.register((err) => {
+      initializer.dispose(err.reason);
     });
 
     /**
@@ -1288,7 +1325,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
      */
     const triggerPlayPauseEventsWhenReady = (willAutoPlay: boolean) => {
       if (playPauseEventsCanceller !== null) {
-        playPauseEventsCanceller.cancel(); // cancel previous logic
+        playPauseEventsCanceller.cancel("reset"); // cancel previous logic
         playPauseEventsCanceller = null;
       }
       playerStateRef.onUpdate(
@@ -1298,9 +1335,9 @@ class Player extends EventEmitter<IPublicAPIEvent> {
           }
           stopListeningToStateUpdates();
           if (playPauseEventsCanceller !== null) {
-            playPauseEventsCanceller.cancel();
+            playPauseEventsCanceller.cancel("reset");
           }
-          playPauseEventsCanceller = new TaskCanceller();
+          playPauseEventsCanceller = new TaskCanceller("API play/pause events");
           playPauseEventsCanceller.linkToSignal(currentContentCanceller.signal);
           if (willAutoPlay !== !videoElement.paused) {
             // paused status is not at the expected value on load: emit event
@@ -1351,11 +1388,11 @@ class Player extends EventEmitter<IPublicAPIEvent> {
 
         if (seekEventsCanceller !== null) {
           if (!isLoadedState(this.state)) {
-            seekEventsCanceller.cancel();
+            seekEventsCanceller.cancel("Player State Update");
             seekEventsCanceller = null;
           }
         } else if (isLoadedState(this.state)) {
-          seekEventsCanceller = new TaskCanceller();
+          seekEventsCanceller = new TaskCanceller("API seek events");
           seekEventsCanceller.linkToSignal(currentContentCanceller.signal);
           emitSeekEvents(
             playbackObserver,
@@ -1720,7 +1757,9 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     if (representations === null) {
       return undefined;
     }
-    return representations.video;
+    return isNullOrUndefined(representations.video)
+      ? representations.video
+      : toVideoRepresentation(representations.video);
   }
 
   /**
@@ -1737,7 +1776,9 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     if (representations === null) {
       return undefined;
     }
-    return representations.audio;
+    return isNullOrUndefined(representations.audio)
+      ? representations.video
+      : toAudioRepresentation(representations.audio);
   }
 
   /**
@@ -2402,6 +2443,23 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     );
   }
 
+  /**
+   * Disable audio track for the current content.
+   * @param {string|undefined} [periodId]
+   */
+  disableAudioTrack(periodId?: string | undefined): void {
+    if (this._priv_contentInfos === null) {
+      return;
+    }
+    const { isDirectFile, mediaElementTracksStore } = this._priv_contentInfos;
+    if (isDirectFile && mediaElementTracksStore !== null) {
+      return mediaElementTracksStore.disableAudioTrack();
+    }
+    return this._priv_callTracksStoreGetterSetter(periodId, undefined, (tcm, periodRef) =>
+      tcm.disableTrack(periodRef, "audio"),
+    );
+  }
+
   lockAudioRepresentations(arg: string[] | ILockedAudioRepresentationsSettings): void {
     if (this._priv_contentInfos === null) {
       throw new Error("No content loaded");
@@ -2690,6 +2748,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       onTracksNotPlayableForType: {
         audio: contentInfos.onAudioTracksNotPlayable,
         video: contentInfos.onVideoTracksNotPlayable,
+        text: "continue",
       },
     });
     contentInfos.tracksStore = tracksStore;
@@ -2913,13 +2972,17 @@ class Player extends EventEmitter<IPublicAPIEvent> {
     const audioRepresentation = this.__priv_getCurrentRepresentations()?.audio ?? null;
     this._priv_triggerEventIfNotStopped(
       "audioRepresentationChange",
-      audioRepresentation,
+      isNullOrUndefined(audioRepresentation)
+        ? audioRepresentation
+        : toVideoRepresentation(audioRepresentation),
       cancelSignal,
     );
     const videoRepresentation = this.__priv_getCurrentRepresentations()?.video ?? null;
     this._priv_triggerEventIfNotStopped(
       "videoRepresentationChange",
-      videoRepresentation,
+      isNullOrUndefined(videoRepresentation)
+        ? videoRepresentation
+        : toVideoRepresentation(videoRepresentation),
       cancelSignal,
     );
   }
@@ -3134,13 +3197,17 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       if (type === "video") {
         this._priv_triggerEventIfNotStopped(
           "videoRepresentationChange",
-          representation,
+          isNullOrUndefined(representation)
+            ? representation
+            : toVideoRepresentation(representation),
           cancelSignal,
         );
       } else if (type === "audio") {
         this._priv_triggerEventIfNotStopped(
           "audioRepresentationChange",
-          representation,
+          isNullOrUndefined(representation)
+            ? representation
+            : toAudioRepresentation(representation),
           cancelSignal,
         );
       }
@@ -3433,7 +3500,7 @@ class Player extends EventEmitter<IPublicAPIEvent> {
       defaultReason: "An unknown error stopped content playback.",
     });
     formattedError.fatal = true;
-    contentInfos.currentContentCanceller.cancel();
+    contentInfos.currentContentCanceller.cancel("fatal err");
     this._priv_cleanUpCurrentContentState();
     this._priv_currentError = formattedError;
     log.error("API: The player stopped because of an error", formattedError);

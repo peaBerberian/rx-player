@@ -333,8 +333,11 @@ export default class SegmentSinksStore {
   /**
    * Dispose of the active SegmentSink for the given type.
    * @param {string} bufferType
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * dispose. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public disposeSegmentSink(bufferType: IBufferType): void {
+  public disposeSegmentSink(bufferType: IBufferType, reason: string | undefined): void {
     const memorizedSegmentSink = this._initializedSegmentSinks[bufferType];
     if (isNullOrUndefined(memorizedSegmentSink)) {
       log.warn("SB: Trying to dispose a SegmentSink that does not exist");
@@ -342,17 +345,20 @@ export default class SegmentSinksStore {
     }
 
     log.info("SB: Aborting SegmentSink", bufferType);
-    memorizedSegmentSink.dispose();
+    memorizedSegmentSink.dispose(reason);
     delete this._initializedSegmentSinks[bufferType];
   }
 
   /**
    * Dispose of all SegmentSink created on this SegmentSinksStore.
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * dispose. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public disposeAll(): void {
+  public disposeAll(reason: string | undefined): void {
     POSSIBLE_BUFFER_TYPES.forEach((bufferType: IBufferType) => {
       if (this.getStatus(bufferType).type === "initialized") {
-        this.disposeSegmentSink(bufferType);
+        this.disposeSegmentSink(bufferType, reason);
       }
     });
   }

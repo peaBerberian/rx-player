@@ -54,18 +54,18 @@ export default function SessionEventsListener(
   const { getLicenseConfig = {} } = keySystemOptions;
 
   /** Allows to manually cancel everything the `SessionEventsListener` is doing. */
-  const manualCanceller = new TaskCanceller();
+  const manualCanceller = new TaskCanceller("DRM SessionEventListener");
   manualCanceller.linkToSignal(cancelSignal);
 
   if (!isNullOrUndefined(session.closed)) {
     session.closed
-      .then(() => manualCanceller.cancel())
+      .then(() => manualCanceller.cancel("MediaKeySession closed"))
       .catch((err) => {
         // Should never happen
         if (cancelSignal.isCancelled()) {
           return;
         }
-        manualCanceller.cancel();
+        manualCanceller.cancel("MediaKeySession closed err");
         callbacks.onError(err);
       });
   }
@@ -73,7 +73,7 @@ export default function SessionEventsListener(
   onKeyError(
     session,
     (evt) => {
-      manualCanceller.cancel();
+      manualCanceller.cancel("MediaKeySession keyerr");
       callbacks.onError(
         new EncryptedMediaError("KEY_ERROR", (evt as Event).type, {
           keyStatuses: undefined,
@@ -98,7 +98,7 @@ export default function SessionEventsListener(
         ) {
           return;
         }
-        manualCanceller.cancel();
+        manualCanceller.cancel("MediaKeySession keystatuseschange handling failure");
         callbacks.onError(error);
       }
     },
@@ -136,7 +136,7 @@ export default function SessionEventsListener(
                 mediaKeySystemAccess,
               );
             } catch (err) {
-              manualCanceller.cancel();
+              manualCanceller.cancel("MediaKeySession update failure");
               callbacks.onError(err);
             }
           }
@@ -145,7 +145,7 @@ export default function SessionEventsListener(
           if (manualCanceller.isUsed()) {
             return;
           }
-          manualCanceller.cancel();
+          manualCanceller.cancel("MediaKeySession license getting failure");
           const formattedError = formatGetLicenseError(err, mediaKeySystemAccess);
 
           if (!isNullOrUndefined(err)) {

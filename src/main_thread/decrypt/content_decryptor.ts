@@ -19,7 +19,8 @@ import type {
   IMediaKeySystemAccess,
   IMediaKeys,
 } from "../../compat/browser_compatibility_types";
-import eme, { getInitData } from "../../compat/eme";
+import type { IEmeApiImplementation } from "../../compat/eme";
+import { getInitData } from "../../compat/eme";
 import config from "../../config";
 import { EncryptedMediaError, OtherError } from "../../errors";
 import log from "../../log";
@@ -106,6 +107,11 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
   private _stateData: IContentDecryptorStateData;
 
   /**
+   * Currently-chosen EME API implementation.
+   */
+  private _eme: IEmeApiImplementation;
+
+  /**
    * Contains information about all key sessions loaded for this current
    * content.
    * This object is most notably used to check which keys are already obtained,
@@ -135,22 +141,13 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
   private _supportedCodecWhenEncrypted: ICodecSupportList;
 
   /**
-   * `true` if the EME API are available on the current platform according to
-   * the default EME implementation used.
-   * `false` otherwise.
-   * @returns {boolean}
-   */
-  public static hasEmeApis(): boolean {
-    return !isNullOrUndefined(eme.requestMediaKeySystemAccess);
-  }
-
-  /**
    * Create a new `ContentDecryptor`, and initialize its decryption capabilities
    * right away.
    * Goes into the `WaitingForAttachment` state once that initialization is
    * done, after which you should call the `attach` method when you're ready for
    * those decryption capabilities to be attached to the HTMLMediaElement.
    *
+   * @param {Object} eme - current EME implementation
    * @param {HTMLMediaElement} mediaElement - The MediaElement which will be
    * associated to a MediaKeys object
    * @param {Array.<Object>} ksOptions - key system configuration.
@@ -158,12 +155,16 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
    * configurations. It will choose the appropriate one depending on user
    * settings and browser support.
    */
-  constructor(mediaElement: IMediaElement, ksOptions: IKeySystemOption[]) {
+  constructor(
+    eme: IEmeApiImplementation,
+    mediaElement: IMediaElement,
+    ksOptions: IKeySystemOption[],
+  ) {
     super();
 
     log.debug("DRM: Starting ContentDecryptor logic.");
 
-    const canceller = new TaskCanceller();
+    const canceller = new TaskCanceller("ContentDecryptor");
     this._currentSessions = [];
     this._canceller = canceller;
     this._initDataQueue = [];
@@ -175,8 +176,9 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
     };
     this._supportedCodecWhenEncrypted = [];
     this.error = null;
+    this._eme = eme;
 
-    eme.onEncrypted(
+    this._eme.onEncrypted(
       mediaElement,
       (evt) => {
         log.debug("DRM: Encrypted event received from media element.");
@@ -188,7 +190,7 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
       canceller.signal,
     );
 
-    initMediaKeys(mediaElement, ksOptions, canceller.signal)
+    initMediaKeys(this._eme, mediaElement, ksOptions, canceller.signal)
       .then((mediaKeysInfo) => {
         const { options, mediaKeySystemAccess } = mediaKeysInfo;
         this._supportedCodecWhenEncrypted = mediaKeysInfo.codecSupport;
@@ -281,7 +283,7 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
 
     this._stateData.isMediaKeysAttached = MediaKeyAttachmentStatus.Pending;
     const stateToAttach = {
-      emeImplementation: eme,
+      emeImplementation: this._eme,
       loadedSessionsStore: stores.loadedSessionsStore,
       mediaKeySystemAccess,
       mediaKeys,
@@ -341,8 +343,11 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
    *   - abort all operations.
    *
    * Once disposed, a `ContentDecryptor` cannot be used anymore.
+   * @param {string | undefined} reason - Human-inspectable reason behind the
+   * dispose. Used for debugging matters, especially for debug log
+   * inspection.
    */
-  public dispose() {
+  public dispose(reason: string | undefined) {
     this.removeEventListener();
     this._stateData = {
       state: ContentDecryptorState.Disposed,
@@ -350,7 +355,7 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
       isInitDataQueueLocked: undefined,
       data: null,
     };
-    this._canceller.cancel();
+    this._canceller.cancel(reason ?? "ContentDecryptor dispose");
     this.trigger("stateChange", this._stateData.state);
   }
 
@@ -934,7 +939,7 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
       isInitDataQueueLocked: undefined,
       data: null,
     };
-    this._canceller.cancel();
+    this._canceller.cancel("ContentDecryptor err");
     this.trigger("error", formattedErr);
 
     // The previous trigger might have lead to a disposal of the `ContentDecryptor`.

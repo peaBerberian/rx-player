@@ -266,7 +266,7 @@ export interface ITextDisplayerInterface {
   /**
    * @see ITextDisplayer
    */
-  stop(): void;
+  stop(reason: string | undefined): void;
 }
 
 /*

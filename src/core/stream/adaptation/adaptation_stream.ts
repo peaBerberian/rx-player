@@ -68,7 +68,7 @@ export default function AdaptationStream(
   const { manifest, period, adaptation } = content;
 
   /** Allows to cancel everything the `AdaptationStream` is doing. */
-  const adapStreamCanceller = new TaskCanceller();
+  const adapStreamCanceller = new TaskCanceller("AdaptationStream " + adaptation.type);
   adapStreamCanceller.linkToSignal(parentCancelSignal);
 
   /**
@@ -172,7 +172,7 @@ export default function AdaptationStream(
   content.representations.onUpdate(
     (val) => {
       if (cancelCurrentStreams !== undefined) {
-        cancelCurrentStreams.cancel();
+        cancelCurrentStreams.cancel("locked representations changed");
       }
       const newRepIds = content.representations.getValue().representationIds;
 
@@ -184,7 +184,9 @@ export default function AdaptationStream(
         newRepIds,
       );
       representationsList.setValueIfChanged(newRepresentations);
-      cancelCurrentStreams = new TaskCanceller();
+      cancelCurrentStreams = new TaskCanceller(
+        "AdaptationStream: RepresentationStream Group " + adaptation.type,
+      );
       cancelCurrentStreams.linkToSignal(adapStreamCanceller.signal);
       onRepresentationsChoiceChange(val, cancelCurrentStreams.signal).catch((err) => {
         if (
@@ -193,7 +195,7 @@ export default function AdaptationStream(
         ) {
           return;
         }
-        adapStreamCanceller.cancel();
+        adapStreamCanceller.cancel("RepresentationStream err");
         callbacks.error(err);
       });
     },
@@ -292,7 +294,9 @@ export default function AdaptationStream(
      * terminating and as such the next one might be immediately created
      * recursively.
      */
-    const repStreamTerminatingCanceller = new TaskCanceller();
+    const repStreamTerminatingCanceller = new TaskCanceller(
+      "AdaptationStream: RepresentationStream creation " + adaptation.type,
+    );
     repStreamTerminatingCanceller.linkToSignal(fnCancelSignal);
     const { representation } = estimateRef.getValue();
     if (representation === null) {
@@ -320,10 +324,16 @@ export default function AdaptationStream(
         }
         if (estimate.urgent) {
           log.info("Stream: urgent Representation switch", adaptation.type);
-          return terminateCurrentStream.setValue({ urgent: true });
+          return terminateCurrentStream.setValue({
+            urgent: true,
+            reason: "Urgent Representation switch",
+          });
         } else {
           log.info("Stream: slow Representation switch", adaptation.type);
-          return terminateCurrentStream.setValue({ urgent: false });
+          return terminateCurrentStream.setValue({
+            urgent: false,
+            reason: "Non-urgent Representation switch",
+          });
         }
       },
       {
@@ -355,7 +365,7 @@ export default function AdaptationStream(
       inbandEvent: callbacks.inbandEvent,
       warning: callbacks.warning,
       error(err: unknown) {
-        adapStreamCanceller.cancel();
+        adapStreamCanceller.cancel("RepresentationStream err cb");
         callbacks.error(err);
       },
       addedSegment(segmentInfo) {
@@ -365,7 +375,7 @@ export default function AdaptationStream(
         if (repStreamTerminatingCanceller.isUsed()) {
           return; // Already handled
         }
-        repStreamTerminatingCanceller.cancel();
+        repStreamTerminatingCanceller.cancel("RepresentationStream terminating");
         return recursivelyCreateRepresentationStreams(fnCancelSignal);
       },
     };
@@ -399,7 +409,9 @@ export default function AdaptationStream(
     /** Set to `true` if we've encountered an error with this `RepresentationStream` */
     let hasEncounteredError = false;
 
-    const bufferGoalCanceller = new TaskCanceller();
+    const bufferGoalCanceller = new TaskCanceller(
+      "AdaptationStream: BufferGoal " + adaptation.type,
+    );
     bufferGoalCanceller.linkToSignal(fnCancelSignal);
 
     /** Actually built buffer size, in seconds. */
@@ -469,7 +481,7 @@ export default function AdaptationStream(
         }
       },
       terminating() {
-        bufferGoalCanceller.cancel();
+        bufferGoalCanceller.cancel("Representation terminating");
         representationStreamCallbacks.terminating();
       },
     });
