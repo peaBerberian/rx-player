@@ -182,24 +182,9 @@ export default function StreamOrchestrator(
           time,
           nextStart: nextPeriod?.start,
         });
-        if (
-          !isNullOrUndefined(lastPeriodEnd) &&
-          lastPeriodEnd === time &&
-          !isNullOrUndefined(nextPeriod) &&
-          nextPeriod.start > time
-        ) {
-          // There's a kind-of ambiguous situation when the position is exactly
-          // at a Period's end but the next Period starts later: Do we consider
-          // that to be an out-of-bounds from the `PeriodStream` linked to that
-          // former Period?
-          // Technically we could, but the rest of the RxPlayer (e.g. a
-          // `Manifest`) may treat it as a special case where the position is
-          // still linked to the former Period.
-          //
-          // To avoid issues, also consider this special case here. Considering
-          // the just-ended Period as still in-bound should not create issues
-          // anyway.
-          log.warn("Stream", "!!!!!!!!!!!!! Do not destroy");
+        if (!isNullOrUndefined(nextPeriod) && periodList.has(nextPeriod)) {
+          // Last check just for resilience reasons that the wanted Period is
+          // not one of the handled ones
           return;
         }
 
