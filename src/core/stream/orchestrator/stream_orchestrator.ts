@@ -493,6 +493,16 @@ export default function StreamOrchestrator(
     playbackObserver.listen(
       ({ position }, stopListeningObservations) => {
         if (basePeriod.end !== undefined && position.getWanted() >= basePeriod.end) {
+          log.warn(
+            "Stream",
+            "!!!!!!! All Periods start -> ",
+            manifest.periods.map((p) => p.start).join(", "),
+          );
+          log.warn(
+            "Stream",
+            "!!!!!!! All Periods end -> ",
+            manifest.periods.map((p) => p.end).join(", "),
+          );
           const nextPeriod = manifest.getPeriodAfter(basePeriod);
 
           log.warn("Stream", "!!!!!!! We just ended the previous PeriodStream", {
