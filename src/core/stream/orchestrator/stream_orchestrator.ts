@@ -174,6 +174,19 @@ export default function StreamOrchestrator(
         if (!enableOutOfBoundsCheck || !isOutOfPeriodList(time)) {
           return;
         }
+        const nextPeriod =
+          manifest.getPeriodForTime(time) ?? manifest.getNextPeriod(time);
+        const lastPeriodEnd = periodList.last()?.end;
+        log.warn("Stream", "!!!!!!!!!", {
+          lastPeriodEnd,
+          time,
+          nextStart: nextPeriod?.start,
+        });
+        if (!isNullOrUndefined(nextPeriod) && periodList.has(nextPeriod)) {
+          // Last check just for resilience reasons that the wanted Period is
+          // not one of the handled ones
+          return;
+        }
 
         log.info(
           "Stream",
@@ -190,8 +203,6 @@ export default function StreamOrchestrator(
         currentCanceller = new TaskCanceller();
         currentCanceller.linkToSignal(orchestratorCancelSignal);
 
-        const nextPeriod =
-          manifest.getPeriodForTime(time) ?? manifest.getNextPeriod(time);
         if (nextPeriod === undefined) {
           log.warn("Stream", "The wanted position is not found in the Manifest.");
           enableOutOfBoundsCheck = true;
@@ -467,7 +478,26 @@ export default function StreamOrchestrator(
     playbackObserver.listen(
       ({ position }, stopListeningObservations) => {
         if (basePeriod.end !== undefined && position.getWanted() >= basePeriod.end) {
+          log.warn(
+            "Stream",
+            "!!!!!!! All Periods start -> ",
+            manifest.periods.map((p) => p.start).join(", "),
+          );
+          log.warn(
+            "Stream",
+            "!!!!!!! All Periods end -> ",
+            manifest.periods.map((p) => p.end).join(", "),
+          );
           const nextPeriod = manifest.getPeriodAfter(basePeriod);
+
+          log.warn("Stream", "!!!!!!! We just ended the previous PeriodStream", {
+            basePeriodStart: basePeriod.start,
+            basePeriodEnd: basePeriod.end,
+            wantedPos: position.getWanted(),
+            polledPos: position.getPolled(),
+            nextPeriodStart: nextPeriod?.start,
+            nextPeriodEnd: nextPeriod?.end,
+          });
 
           // Handle special wantedPosition === basePeriod.end cases
           if (basePeriod.containsTime(position.getWanted(), nextPeriod)) {

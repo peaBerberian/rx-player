@@ -139,7 +139,8 @@ export function getPeriodForTime(
   time: number,
 ): IPeriod | IPeriodMetadata | undefined {
   let nextPeriod = null;
-  for (const period of manifest.periods) {
+  for (let i = manifest.periods.length - 1; i >= 0; i--) {
+    const period = manifest.periods[i];
     if (periodContainsTime(period, time, nextPeriod)) {
       return period;
     }
@@ -187,11 +188,21 @@ export function periodContainsTime(
   nextPeriod: IPeriodMetadata | null,
 ): boolean {
   if (time >= period.start && (period.end === undefined || time < period.end)) {
+    console.warn("!!!!!!!!!!!!!! CASE 1", "pe=", period.end, "time=", time);
     return true;
   } else if (
     time === period.end &&
     (nextPeriod === null || nextPeriod.start > period.end)
   ) {
+    console.warn(
+      "!!!!!!!!!!!!!! CASE 2",
+      "pe=",
+      period.end,
+      "nps",
+      nextPeriod?.start,
+      "time=",
+      time,
+    );
     // The last possible timed position of a Period is ambiguous as it is
     // frequently in common with the start of the next one: is it part of
     // the current or of the next Period?
@@ -199,6 +210,15 @@ export function periodContainsTime(
     // only one with that position.
     return true;
   }
+  console.warn(
+    "!!!!!!!!!!!!!! CASE 3",
+    "pe=",
+    period.end,
+    "nps",
+    nextPeriod?.start,
+    "time=",
+    time,
+  );
   return false;
 }
 
