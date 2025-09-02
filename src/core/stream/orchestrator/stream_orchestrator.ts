@@ -492,7 +492,7 @@ export default function StreamOrchestrator(
     // that Period.
     playbackObserver.listen(
       ({ position }, stopListeningObservations) => {
-        if (basePeriod.end !== undefined && position.getWanted() >= basePeriod.end) {
+        if (basePeriod.end !== undefined && position.getWanted() > basePeriod.end) {
           const nextPeriod = manifest.getPeriodAfter(basePeriod);
 
           // Handle special wantedPosition === basePeriod.end cases
