@@ -492,8 +492,17 @@ export default function StreamOrchestrator(
     // that Period.
     playbackObserver.listen(
       ({ position }, stopListeningObservations) => {
-        if (basePeriod.end !== undefined && position.getWanted() > basePeriod.end) {
+        if (basePeriod.end !== undefined && position.getWanted() >= basePeriod.end) {
           const nextPeriod = manifest.getPeriodAfter(basePeriod);
+
+          log.warn("Stream", "!!!!!!! We just ended the previous PeriodStream", {
+            basePeriodStart: basePeriod.start,
+            basePeriodEnd: basePeriod.end,
+            wantedPos: position.getWanted(),
+            polledPos: position.getPolled(),
+            nextPeriodStart: nextPeriod?.start,
+            nextPeriodEnd: nextPeriod?.end,
+          });
 
           // Handle special wantedPosition === basePeriod.end cases
           if (basePeriod.containsTime(position.getWanted(), nextPeriod)) {
