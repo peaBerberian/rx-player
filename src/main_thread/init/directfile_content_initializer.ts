@@ -270,11 +270,6 @@ export function setAutoplay(
   autoplay: boolean,
   cancellationSignal: CancellationSignal,
 ) {
-  if (!autoplay) {
-    // If autoplay option is set to false, don't touch to `autoplay`
-    // videoElement attribute.
-    return;
-  }
   const autoplayPreviousValue = mediaElement.autoplay;
   cancellationSignal.register(() => {
     /**
@@ -284,7 +279,7 @@ export function setAutoplay(
      */
     mediaElement.autoplay = autoplayPreviousValue;
   });
-  mediaElement.autoplay = autoplay;
+  mediaElement.disableRemotePlayback = autoplay;
 }
 
 /**
