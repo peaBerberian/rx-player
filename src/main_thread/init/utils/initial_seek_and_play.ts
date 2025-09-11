@@ -151,11 +151,9 @@ export default function performInitialSeekAndPlay(
                 if (canSeekDirectlyAfterLoadedMetadata()) {
                   performInitialSeek(initiallySeekedTime);
                 } else {
-                  const seekOnCanPlay = () => {
+                  setTimeout(() => {
                     performInitialSeek(initiallySeekedTime);
-                    mediaElement.removeEventListener("canplay", seekOnCanPlay);
-                  };
-                  mediaElement.addEventListener("canplay", seekOnCanPlay);
+                  }, 0);
                 }
               } else {
                 playbackObserver.unblockSeeking();
