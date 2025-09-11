@@ -15,7 +15,7 @@
  */
 
 import type { IMediaElement } from "../../compat/browser_compatibility_types";
-import treatNotReadyAsLoaded from "../../compat/tread_not_ready_as_loaded";
+import { isSafariDesktop, isSafariMobile } from "../../compat/browser_detection";
 import config from "../../config";
 import type {
   IPlaybackObservation,
@@ -116,7 +116,6 @@ export function constructPlayerStateReference(
   initializer: ContentInitializer,
   mediaElement: IMediaElement,
   playbackObserver: IReadOnlyPlaybackObserver<IPlaybackObservation>,
-  isDirectFile: boolean,
   cancelSignal: CancellationSignal,
 ): IReadOnlySharedReference<IPlayerState> {
   const playerStateRef = new SharedReference<IPlayerState>(
@@ -129,13 +128,13 @@ export function constructPlayerStateReference(
       if (playerStateRef.getValue() === PLAYER_STATES.LOADING) {
         playerStateRef.setValue(PLAYER_STATES.LOADED);
         if (!cancelSignal.isCancelled()) {
-          const newState = getLoadedContentState(mediaElement, null, isDirectFile);
+          const newState = getLoadedContentState(mediaElement, null);
           if (newState !== PLAYER_STATES.PAUSED) {
             playerStateRef.setValue(newState);
           }
         }
       } else if (playerStateRef.getValue() === PLAYER_STATES.RELOADING) {
-        playerStateRef.setValue(getLoadedContentState(mediaElement, null, isDirectFile));
+        playerStateRef.setValue(getLoadedContentState(mediaElement, null));
       } else {
         updateStateIfLoaded(null);
       }
@@ -193,7 +192,7 @@ export function constructPlayerStateReference(
     if (!isLoadedState(playerStateRef.getValue())) {
       return;
     }
-    const newState = getLoadedContentState(mediaElement, stallRes, isDirectFile);
+    const newState = getLoadedContentState(mediaElement, stallRes);
     const prevState = playerStateRef.getValue();
 
     // Some safety checks to avoid having nonsense state switches
@@ -215,7 +214,6 @@ export function constructPlayerStateReference(
 export function getLoadedContentState(
   mediaElement: IMediaElement,
   stalledStatus: IStallingSituation | null,
-  isDirectFile: boolean,
 ): IPlayerState {
   const { FORCED_ENDED_THRESHOLD } = config.getCurrent();
   if (mediaElement.ended) {
@@ -246,11 +244,11 @@ export function getLoadedContentState(
 
     if (
       (stalledStatus === "not-ready" || stalledStatus === "internal-seek") &&
-      treatNotReadyAsLoaded(isDirectFile)
+      (isSafariMobile || isSafariDesktop)
     ) {
-      /**
-       * On some devices, `readyState` remains low until `play()` is called,
-       * even though the media is effectively ready. Treat it as loaded in this case.
+      /*
+       * On Safari, the readyState may remain at 1 with seeking: true until play() is called.
+       * Therefore, using the LOADED state is more appropriate in this case.
        */
       return PLAYER_STATES.LOADED;
     }
