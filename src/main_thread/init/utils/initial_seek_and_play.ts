@@ -15,6 +15,7 @@
  */
 
 import type { IMediaElement } from "../../../compat/browser_compatibility_types";
+import canSeekDirectlyAfterLoadedMetadata from "../../../compat/can_seek_directly_after_loaded_metadata";
 import shouldValidateMetadata from "../../../compat/should_validate_metadata";
 import { MediaError } from "../../../errors";
 import log from "../../../log";
@@ -145,8 +146,15 @@ export default function performInitialSeekAndPlay(
             }
             if (obs.readyState >= 1) {
               stopListening();
+
               if (initiallySeekedTime !== 0 && initiallySeekedTime !== undefined) {
-                performInitialSeek(initiallySeekedTime);
+                if (canSeekDirectlyAfterLoadedMetadata()) {
+                  performInitialSeek(initiallySeekedTime);
+                } else {
+                  setTimeout(() => {
+                    performInitialSeek(initiallySeekedTime);
+                  }, 0);
+                }
               } else {
                 playbackObserver.unblockSeeking();
               }

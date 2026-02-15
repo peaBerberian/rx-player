@@ -29,7 +29,6 @@ import assert from "../../utils/assert";
 import isNullOrUndefined from "../../utils/is_null_or_undefined";
 import noop from "../../utils/noop";
 import type { IReadOnlySharedReference } from "../../utils/reference";
-import type { CancellationSignal } from "../../utils/task_canceller";
 import TaskCanceller from "../../utils/task_canceller";
 import { ContentInitializer } from "./types";
 import type { IInitialTimeOptions } from "./utils/get_initial_time";
@@ -93,11 +92,6 @@ export default class DirectFileContentInitializer extends ContentInitializer {
     const { keySystems, speed, url } = this._settings;
 
     clearElementSrc(mediaElement);
-
-    // Set the autoplay attribute on the mediaElement.
-    // On Apple devices, the native HLS player needs autoplay to be set
-    // in order to start buffering,which is required for our API's autoplay to work.
-    setAutoplay(mediaElement, this._settings.autoPlay, cancelSignal);
 
     const { statusRef: drmInitRef } = initializeContentDecryption(
       mediaElement,
@@ -261,36 +255,6 @@ export default class DirectFileContentInitializer extends ContentInitializer {
 }
 
 /**
- * Set autoplay value on the mediaElement.
- *
- * @param {HTMLElement} mediaElement - The media element whose `autoplay`
- * attribute will be modified.
- * @param {CancellationSignal} cancellationSignal - The signal that, when triggered,
- * restores the `autoplay` attribute to its original value.
- */
-export function setAutoplay(
-  mediaElement: IMediaElement,
-  autoplay: boolean,
-  cancellationSignal: CancellationSignal,
-) {
-  if (!autoplay) {
-    // If autoplay option is set to false, don't touch to `autoplay`
-    // videoElement attribute.
-    return;
-  }
-  const autoplayPreviousValue = mediaElement.autoplay;
-  mediaElement.autoplay = autoplay;
-  cancellationSignal.register(() => {
-    /**
-     * Restore the `autoplay` attribute to its previous value.
-     * This ensures that the media element's state is the same as it was before
-     * calling `RxPlayer.loadVideo` in the application.
-     */
-    mediaElement.autoplay = autoplayPreviousValue;
-  });
-}
-
-/**
  * calculate initial time as a position in seconds.
  * @param {HTMLMediaElement} mediaElement
  * @param {Object|undefined} [startAt]
@@ -326,7 +290,7 @@ function getDirectFileInitialTime(
     }
     log.warn(
       "Init",
-      "startAt.fromLastPosition set but duration is not known, " +
+      "startAt.fromLastPosition set but no known duration, " +
         "it may be too soon to seek",
     );
     return undefined;
@@ -336,8 +300,7 @@ function getDirectFileInitialTime(
     if (isNullOrUndefined(livePosition)) {
       log.warn(
         "Init",
-        "startAt.fromLivePosition set but live position is not known, " +
-          "beginning at 0.",
+        "startAt.fromLivePosition set but no known live position, " + "beginning at 0.",
       );
       return 0;
     }
@@ -346,7 +309,7 @@ function getDirectFileInitialTime(
     if (isNullOrUndefined(duration) || !isFinite(duration)) {
       log.warn(
         "Init",
-        "startAt.percentage set but duration is not known, " + "beginning at 0.",
+        "startAt.percentage set but no known duration, " + "beginning at 0.",
       );
       return 0;
     }
