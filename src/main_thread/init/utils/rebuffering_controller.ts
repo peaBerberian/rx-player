@@ -40,6 +40,9 @@ import type { IStallingSituation } from "../types.ts";
  */
 const EPSILON = 1 / 60;
 
+const ENABLE_REBUFFERING = false;
+const ENABLE_DISCONTINUITY_SEEKING = false;
+
 /**
  * Monitor playback, trying to avoid stalling situation.
  * If stopping the player to build buffer is needed, temporarily set the
@@ -107,7 +110,7 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
         if (freezing !== null) {
           const now = getMonotonicTimeStamp();
           if (now - freezing.timestamp > FREEZING_STALLED_DELAY) {
-            if (rebuffering === null) {
+            if (rebuffering === null || !ENABLE_REBUFFERING) {
               playbackRateUpdater.stopRebuffering();
             } else {
               playbackRateUpdater.startRebuffering();
@@ -156,7 +159,7 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
               lastPolledPosition: position.getPolled(),
             },
           );
-        } else {
+        } else if (ENABLE_REBUFFERING) {
           playbackRateUpdater.startRebuffering();
         }
 
@@ -186,6 +189,7 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
           : this._playbackObserver.getCurrentTime();
 
         if (
+          ENABLE_DISCONTINUITY_SEEKING &&
           stalledPosition !== null &&
           stalledPosition !== undefined &&
           this._speed.getValue() > 0
@@ -231,6 +235,7 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
           positionBlockedAt,
         );
         if (
+          ENABLE_DISCONTINUITY_SEEKING &&
           (!isSeekingApproximate() ||
             getMonotonicTimeStamp() - rebuffering.timestamp > 1000) &&
           this._speed.getValue() > 0 &&
@@ -254,22 +259,24 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
 
         // Are we in a discontinuity between periods ? -> Seek at the beginning of the
         //                                                next period
-        for (let i = this._manifest.periods.length - 2; i >= 0; i--) {
-          const period = this._manifest.periods[i];
-          if (period.end !== undefined && period.end <= positionBlockedAt) {
-            if (
-              this._manifest.periods[i + 1].start > positionBlockedAt &&
-              this._manifest.periods[i + 1].start > targetTime
-            ) {
-              const nextPeriod = this._manifest.periods[i + 1];
-              this._playbackObserver.setCurrentTime(nextPeriod.start);
-              this.trigger(
-                "warning",
-                generateDiscontinuityError(positionBlockedAt, nextPeriod.start),
-              );
-              return;
+        if (ENABLE_DISCONTINUITY_SEEKING) {
+          for (let i = this._manifest.periods.length - 2; i >= 0; i--) {
+            const period = this._manifest.periods[i];
+            if (period.end !== undefined && period.end <= positionBlockedAt) {
+              if (
+                this._manifest.periods[i + 1].start > positionBlockedAt &&
+                this._manifest.periods[i + 1].start > targetTime
+              ) {
+                const nextPeriod = this._manifest.periods[i + 1];
+                this._playbackObserver.setCurrentTime(nextPeriod.start);
+                this.trigger(
+                  "warning",
+                  generateDiscontinuityError(positionBlockedAt, nextPeriod.start),
+                );
+                return;
+              }
+              break;
             }
-            break;
           }
         }
 
@@ -302,6 +309,9 @@ export default class RebufferingController extends EventEmitter<IRebufferingCont
    * @param {Object} period - Period for which no segment will currently load.
    */
   public onLockedStream(bufferType: IBufferType, period: IPeriodMetadata): void {
+    if (!ENABLE_DISCONTINUITY_SEEKING) {
+      return;
+    }
     if (!this._isStarted) {
       this.start();
     }
