@@ -25,6 +25,7 @@ import {
 } from "../../../compat/eme/index.ts";
 import log from "../../../log.ts";
 import assert from "../../../utils/assert.ts";
+import { bytesToBase64 } from "../../../utils/base64.ts";
 import isNullOrUndefined from "../../../utils/is_null_or_undefined.ts";
 import type { IProcessedProtectionData } from "../types.ts";
 import KeySessionRecord from "./key_session_record.ts";
@@ -169,6 +170,16 @@ export default class LoadedSessionsStore {
         entry = stored;
         break;
       }
+    }
+    let toBase64 = bytesToBase64(initializationData);
+    let counter = 1;
+    while (toBase64.length > 0) {
+      const currentStr = toBase64.substring(0, 30);
+      toBase64 = toBase64.substring(30);
+      console.log(
+        `!!!!! GENERATE REQUEST ${initializationDataType} ${initializationData.byteLength} ${counter} ${currentStr}`,
+      );
+      counter++;
     }
     if (entry === undefined) {
       log.error(
