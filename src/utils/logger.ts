@@ -136,6 +136,10 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
   private _currentLevel: ILoggerLevel;
   private _currentFormat: ILogFormat;
   private readonly _levels: Record<ILoggerLevel, number>;
+  private _consoleMethods: Record<
+    "error" | "warn" | "info" | "log",
+    (...args: unknown[]) => void
+  >;
 
   constructor() {
     super();
@@ -144,6 +148,7 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
     this.info = noop;
     this.debug = noop;
     this._levels = { NONE: 0, ERROR: 1, WARNING: 2, INFO: 3, DEBUG: 4 };
+    this._consoleMethods = { error: noop, warn: noop, info: noop, log: noop };
     this._currentFormat = "standard";
     this._currentLevel = DEFAULT_LOG_LEVEL;
   }
@@ -197,16 +202,7 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
         ? (logMethod: string, consoleFn: (...vals: unknown[]) => void): IConsoleFn => {
             return (namespace: ILogNamespace, ...args: IAcceptedLogValue[]) => {
               const now = getMonotonicTimeStamp();
-              return consoleFn(
-                String(now.toFixed(2)),
-                `[${logMethod}]`,
-                namespace + ":",
-                ...args.map((a) =>
-                  typeof a === "object" && a !== null && !(a instanceof Error)
-                    ? formatContextObject(a)
-                    : a,
-                ),
-              );
+              return consoleFn(...formatFullLog(now, logMethod, namespace, args));
             };
           }
         : (_logMethod: string, consoleFn: (...vals: unknown[]) => void): IConsoleFn => {
@@ -224,21 +220,27 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
 
     if (logFn === undefined) {
       /* eslint-disable no-console */
+      this._consoleMethods = {
+        error: level >= this._levels.ERROR ? console.error.bind(console) : noop,
+        warn: level >= this._levels.WARNING ? console.warn.bind(console) : noop,
+        info: level >= this._levels.INFO ? console.info.bind(console) : noop,
+        log: level >= this._levels.DEBUG ? console.log.bind(console) : noop,
+      };
       this.error =
         level >= this._levels.ERROR
-          ? generateLogFn("error", console.error.bind(console))
+          ? generateLogFn("error", this._consoleMethods.error)
           : noop;
       this.warn =
         level >= this._levels.WARNING
-          ? generateLogFn("warn", console.warn.bind(console))
+          ? generateLogFn("warn", this._consoleMethods.warn)
           : noop;
       this.info =
         level >= this._levels.INFO
-          ? generateLogFn("info", console.info.bind(console))
+          ? generateLogFn("info", this._consoleMethods.info)
           : noop;
       this.debug =
         level >= this._levels.DEBUG
-          ? generateLogFn("log", console.log.bind(console))
+          ? generateLogFn("log", this._consoleMethods.log)
           : noop;
       /* eslint-enable no-console */
     } else {
@@ -277,6 +279,47 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
     return this._currentFormat;
   }
 
+  public log({
+    timestamp,
+    level,
+    namespace,
+    args,
+  }: {
+    timestamp: number;
+    level: ILoggerLevel;
+    namespace: ILogNamespace;
+    args: IAcceptedLogValue[];
+  }): void {
+    if (level === "NONE" || this._levels[level] > this._levels[this._currentLevel]) {
+      return;
+    }
+
+    let method: "error" | "warn" | "info" | "debug";
+    switch (level) {
+      case "ERROR":
+        method = "error";
+        break;
+      case "WARNING":
+        method = "warn";
+        break;
+      case "INFO":
+        method = "info";
+        break;
+      default:
+        method = "debug";
+    }
+
+    if (this._currentFormat !== "full") {
+      this[method](namespace, ...args);
+      return;
+    }
+
+    const consoleMethod = method === "debug" ? "log" : method;
+    this._consoleMethods[consoleMethod](
+      ...formatFullLog(timestamp, consoleMethod, namespace, args),
+    );
+  }
+
   /**
    * Returns `true` if the currently set level includes logs of the level given
    * in argument.
@@ -286,6 +329,24 @@ export default class Logger extends EventEmitter<ILoggerEvents> {
   public hasLevel(logLevel: ILoggerLevel): boolean {
     return this._levels[logLevel] >= this._levels[this._currentLevel];
   }
+}
+
+function formatFullLog(
+  timestamp: number,
+  logMethod: string,
+  namespace: ILogNamespace,
+  args: IAcceptedLogValue[],
+): unknown[] {
+  return [
+    String(timestamp.toFixed(2)),
+    `[${logMethod}]`,
+    namespace + ":",
+    ...args.map((arg) =>
+      typeof arg === "object" && arg !== null && !(arg instanceof Error)
+        ? formatContextObject(arg)
+        : arg,
+    ),
+  ];
 }
 
 function formatContextObject(obj: Partial<Record<string, IAcceptedLogValue>>) {
