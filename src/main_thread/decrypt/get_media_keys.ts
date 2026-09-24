@@ -157,6 +157,32 @@ async function createMediaKeys(
   log.info("DRM", "Calling createMediaKeys on the MediaKeySystemAccess");
   try {
     const mediaKeys = await mediaKeySystemAccess.createMediaKeys();
+    (window as any).MSMS = mediaKeys;
+    if (mediaKeySystemAccess.keySystem.toLowerCase().indexOf("playready") >= 0) {
+      log.info("DRM", "Calling PlayReady MediaKeys initialization probe");
+      try {
+        mediaKeys
+          .setServerCertificate(new Uint8Array([0x50, 0x52, 0x4f, 0x42, 0x45]))
+          .then((result) => {
+            log.info("DRM", "PlayReady MediaKeys initialization probe resolved", {
+              result,
+            });
+          })
+          .catch((error: unknown) => {
+            log.info(
+              "DRM",
+              "PlayReady MediaKeys initialization probe rejected",
+              error instanceof Error ? error : "Unknown error",
+            );
+          });
+      } catch (error) {
+        log.info(
+          "DRM",
+          "PlayReady MediaKeys initialization probe threw synchronously",
+          error instanceof Error ? error : "Unknown error",
+        );
+      }
+    }
     return mediaKeys;
   } catch (error) {
     const message =
