@@ -35,6 +35,7 @@ import { objectValues } from "../../utils/object_values.ts";
 import { bytesToHex } from "../../utils/string_parsing.ts";
 import TaskCanceller from "../../utils/task_canceller.ts";
 import createOrLoadSession from "./create_or_load_session.ts";
+import debugInitializePlayReady from "./debug_initialize_playready.ts";
 import type { ICodecSupportList } from "./find_key_system.ts";
 import type { IMediaKeysInfos } from "./get_media_keys.ts";
 import initMediaKeys from "./init_media_keys.ts";
@@ -320,6 +321,11 @@ export default class ContentDecryptor extends EventEmitter<IContentDecryptorEven
         if (this._isStopped()) {
           // We might be stopped since then
           return;
+        }
+
+        // Temporary debugging probe, independent of content encryption.
+        if (mediaKeySystemAccess.keySystem.indexOf("playready") >= 0) {
+          debugInitializePlayReady(mediaElement, mediaKeys, this._canceller.signal);
         }
 
         const prevState = this._stateData.state;
